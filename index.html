@@ -245,7 +245,7 @@ const PATH = {
 };
 const PINK = '#e2a0d4', PINK_HI = 'rgba(250,218,244,.85)';
 const circ = (g, x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
-let IW, IH, S, OX, OY, groundCv, grainPat, layer, lctx;
+let IW, IH, S, OX, OY, grainPat, layer, lctx;
 function sizeIntro() {
   const dpr = Math.min(2, devicePixelRatio || 1);
   IW = ic.width = Math.round(innerWidth * dpr); IH = ic.height = Math.round(innerHeight * dpr);
@@ -254,13 +254,6 @@ function sizeIntro() {
   const gc = mkc(220), gg = gc.getContext('2d');
   for (let i = 0; i < 2600; i++) { gg.fillStyle = Math.random() < .55 ? `rgba(255,255,255,${Math.random() * .25})` : `rgba(30,40,40,${Math.random() * .18})`; gg.fillRect(Math.random() * 220, Math.random() * 220, 1.6, 1.6); }
   grainPat = lctx.createPattern(gc, 'repeat');
-  groundCv = mkc(IW, IH); const g = groundCv.getContext('2d');
-  const gx1 = OX + 500 * S, gy0 = OY + 680 * S, n = Math.min(160000, Math.max(0, gx1 * (IH - gy0) / (4 * S * S)) | 0);
-  for (let i = 0; i < n; i++) {
-    const x = Math.random() * gx1, y = gy0 + Math.random() * (IH - gy0);
-    if (Math.random() < Math.pow(clamp(x / gx1), 4) * .75) continue;
-    g.fillStyle = `rgba(235,235,235,${.35 + Math.random() * .65})`; const d = (.8 + Math.random() * 1.4) * S; g.fillRect(x, y, d, d);
-  }
 }
 function drawMonkey(g, t, sq) {
   g.setTransform(S, 0, 0, S, OX, OY);
@@ -315,7 +308,7 @@ function introFrame(now) {
   requestAnimationFrame(introFrame);
   const s = now / 1000, t = s - introT0, j = s - jiggleAt;
   const sq = j < .4 ? Math.sin(j / .4 * Math.PI * 2) * .04 * (1 - j / .4) : 0;
-  ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#000'; ictx.fillRect(0, 0, IW, IH); ictx.drawImage(groundCv, 0, 0);
+  ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#000'; ictx.fillRect(0, 0, IW, IH);
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); drawMonkey(lctx, t, sq);
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
   ictx.drawImage(layer, 0, 0);
