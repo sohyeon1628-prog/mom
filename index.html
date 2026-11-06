@@ -98,7 +98,7 @@
     <small class="sing">SING ALONG ♪</small>
     <div class="line">생일 축하합니다</div>
     <div class="line">생일 축하합니다</div>
-    <div class="line">사랑하는 엄마의</div>
+    <div class="line">사랑하는 영미의</div>
     <div class="line">생일 축하합니다 ♪</div>
     <span class="note n1">♪</span><span class="note n2">♫</span><span class="note n3">♪</span><span class="note n4">♫</span>
   </div>
@@ -263,19 +263,29 @@ function clearSmoke() { smoke.forEach(m => { scene.remove(m); m.material.dispose
 function setPhase(p) { phase = p; phaseAt = nowS(); updateButtons(); }
 let wishT;
 function startWish() { if (phase !== 'idle') return; setPhase('wish'); clearTimeout(wishT); wishT = setTimeout(() => { if (phase === 'wish') setPhase('blow'); }, 4000); }
-let msgSrc;
+let msgSrc, msgT, msgOn = false;
 function blowOut() {
   if (phase !== 'blow') return;
   setPhase('out'); spawnSmoke(); sfxBlow();
-  // 팡파르가 끝나면 내 목소리 메시지
-  if (VOICE.message && ac && ac.state === 'running') msgSrc = playVoice(VOICE.message, ac.currentTime + 3.2, ac.destination);
+  // 팡파르 끝나갈 때 내 목소리 메시지 (아직 못 불러왔으면 기다렸다가)
+  if (!ac || REC || WATCH) return;
+  clearTimeout(msgT);
+  msgT = setTimeout(async () => {
+    await decodeVoices();
+    if (phase !== 'out' || !VOICE.message) return;
+    if (ac.state !== 'running') await ac.resume().catch(() => {});
+    msgSrc = playVoice(VOICE.message, ac.currentTime + .05, ac.destination);
+    msgOn = true; updateButtons();
+    msgSrc.onended = () => { msgOn = false; msgSrc = null; updateButtons(); };
+  }, 2400);
 }
-function relight() { clearTimeout(wishT); if (msgSrc) { try { msgSrc.stop(); } catch (e) {} msgSrc = null; } clearSmoke(); flame.visible = true; flame.rotation.z = 0; glow.intensity = .5; setPhase('idle'); }
+function stopMessage() { clearTimeout(msgT); if (msgSrc) { msgSrc.onended = null; try { msgSrc.stop(); } catch (e) {} msgSrc = null; } msgOn = false; }
+function relight() { clearTimeout(wishT); stopMessage(); clearSmoke(); flame.visible = true; flame.rotation.z = 0; glow.intensity = .5; setPhase('idle'); }
 function updateButtons() {
   const ready = !introOn && !WATCH && !REC;
   document.getElementById('blow').hidden = !ready || phase !== 'blow';
   const sing = document.getElementById('sing');
-  sing.hidden = !ready || songOn || phase === 'wish' || phase === 'blow';
+  sing.hidden = !ready || songOn || msgOn || phase === 'wish' || phase === 'blow';
   sing.textContent = songPlayed ? '생일 노래 다시 듣기' : '생일 노래 듣기';
   sing.className = phase === 'out' || !songPlayed ? '' : 'ghost';
   document.getElementById('replay').hidden = !ready;
@@ -358,6 +368,7 @@ function playSong(onEnd = startWish) {
   master.gain.value = voice ? .14 : .2;
   if (voice) { vbus = ac.createGain(); vbus.connect(ac.destination); playVoice(voice, t0, vbus); }
   clearInterval(lyricTimer); setLine(-1);
+  document.getElementById('lyrics').hidden = false;
   // 딱 딱 딱 — 드럼 스틱 카운트
   [-5, -4, -3].forEach(m => stick(bus, T(m)));
   // 멜로디 (+ 한 옥타브 위 살짝 메아리)
@@ -396,7 +407,11 @@ function playSong(onEnd = startWish) {
   TRIAD.C.forEach(n => tone(bus, hz(n), T(28), BEAT * 2.2, PULSE[.125], .14));
   tone(bus, hz(36), T(28), BEAT * 2.2, 'triangle', 1);
   songOn = songPlayed = true; updateButtons();
-  songTimers.push(setTimeout(() => { songOn = false; bus = vbus = null; restartLyrics(); updateButtons(); onEnd(); }, (lead + SONG_LEN) * 1000));
+  songTimers.push(setTimeout(() => {
+    songOn = false; bus = vbus = null; restartLyrics();
+    if (!REC) document.getElementById('lyrics').hidden = true; // 노래가 끝나면 가사 상자 숨기기
+    updateButtons(); onEnd();
+  }, (lead + SONG_LEN) * 1000));
   return t0;
 }
 // 촛불 끌 때: 후~ 바람 소리 + 축하 팡파르
@@ -435,7 +450,26 @@ const PATH = {
   crease: new Path2D('M270 440 C266 520 262 600 268 680'),
   heart: new Path2D('M268 306 C302 330 374 328 374 386 C374 432 330 446 300 440 C284 437 272 428 268 420 C264 428 252 437 236 440 C206 446 162 432 164 386 C166 328 234 330 268 306 Z'),
 };
-const PINK = '#e2a0d4', PINK_HI = 'rgba(250,218,244,.85)';
+const PINK = '#e2a0d4', PINK_HI = 'rgba(250,218,244,.85)', HEART = '#fff0fa';
+// 크림 속에 콕콕 박힌 작은 하트 (그림자 + 그라데이션 + 반짝이로 살짝 입체감)
+function heartPath(g, s) {
+  g.beginPath(); g.moveTo(0, s * .6);
+  g.bezierCurveTo(-s * .75, s * .08, -s * .45, -s * .5, 0, -s * .12);
+  g.bezierCurveTo(s * .45, -s * .5, s * .75, s * .08, 0, s * .6);
+}
+function heart(g, x, y, s, a = .8, rot = 0) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.globalAlpha *= a;
+  g.save(); g.translate(s * .07, s * .1); heartPath(g, s); g.fillStyle = 'rgba(150,60,125,.55)'; g.fill(); g.restore();
+  const gr = g.createRadialGradient(-s * .2, -s * .2, s * .05, 0, 0, s * .8);
+  gr.addColorStop(0, '#fff3fb'); gr.addColorStop(.55, '#ffc4e8'); gr.addColorStop(1, '#e98cc8');
+  heartPath(g, s); g.fillStyle = gr; g.fill();
+  g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.ellipse(-s * .24, -s * .2, s * .1, s * .065, -.6, 0, 7); g.fill();
+  g.restore();
+}
+// 매 프레임 같은 자리에 오도록 미리 정해 둔 불규칙한 하트 배치
+const rnd = (k => () => (k = (k * 16807) % 2147483647) / 2147483647)(20261107);
+const FILL_HEARTS = Array.from({ length: 70 }, () => [rnd() * 300, rnd() * 300, 5 + rnd() * 5, (rnd() - .5) * .9]);
+const FLOW_HEARTS = Array.from({ length: 7 }, () => [rnd(), (rnd() - .5) * .5, .45 + rnd() * .35, (rnd() - .5) * 1]);
 const circ = (g, x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
 let IW, IH, S, OX, OY, grainPat, layer, lctx;
 function sizeIntro() {
@@ -487,14 +521,16 @@ function stream(g, x0, y0, len, w, u, seed) {
   for (let i = n; i >= 0; i--) { const [x, y, ww] = pts[i]; g.lineTo(x - ww / 2, y); }
   g.closePath(); g.fillStyle = PINK; g.fill();
   const [ex, ey, ew] = pts[n]; circ(g, ex, ey, ew * .78, PINK);
-  g.strokeStyle = PINK_HI; g.lineWidth = w * .18; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(x0 - w * .18, y0 + 4); g.lineTo(ex - w * .18, ey - 6); g.stroke();
+  FLOW_HEARTS.forEach(([o, dx, sz, rot]) => {
+    const f = (o + u * .4) % 1, [x, y, ww] = pts[Math.round(f * n)];
+    if (f > .06) heart(g, x + dx * ww, y, ww * sz, .85 * Math.min(1, (1 - f) * 4), rot);
+  });
 }
 function drawLiquid(g, u) {
   g.setTransform(S, 0, 0, S, OX, OY);
   stream(g, 268, 380, 460 * easeIn(clamp((u - .3) / 1.4)), 22, u, 0);
   const br = 17 * easeOut(clamp(u / .5));
-  if (br > 0) { circ(g, 268, 380, br, PINK); circ(g, 268 - br * .35, 380 - br * .35, br * .3, PINK_HI); }
+  if (br > 0) { circ(g, 268, 380, br, PINK); heart(g, 268 + br * .05, 380 - br * .05, br * .8, .85, -.2); }
 }
 let lastTap = -9, jAmp = .04;
 let introOn = false, introT0 = 0, taps = 0, jiggleAt = -9, oozeAt = null, scrollAt = null;
@@ -540,7 +576,7 @@ function startWatch() {
 }
 function showIntro() {
   if (WATCH) { watchStarted = false; watchVid.pause(); watchVid.hidden = true; watchEnd.hidden = true; }
-  stopSong(); relight();
+  stopSong(); relight(); document.getElementById('lyrics').hidden = false;
   sizeIntro(); taps = 0; oozeAt = null; scrollAt = null; jiggleAt = -9; formAt = null;
   introT0 = performance.now() / 1000; intro.hidden = false; intro.style.transform = ''; appEl.style.transform = `translateY(${innerHeight}px)`;
   document.body.classList.add('lock'); window.scrollTo(0, 0);
@@ -551,10 +587,34 @@ intro.addEventListener('pointerdown', () => {
   const s = performance.now() / 1000;
   if (oozeAt !== null || s - introT0 < 1.4) return;
   if (s - lastTap > 1.2) taps = 0;
-  taps++; lastTap = s; jiggleAt = s; jAmp = .035 + taps * .013;
+  taps++; lastTap = s; jiggleAt = s; jAmp = .035 + taps * .013; tapHit = true;
   if (taps >= TAPS_NEEDED) { oozeAt = s + .45; unlockWatch(); }
 });
-intro.addEventListener('pointerup', () => { if (!WATCH) unlockAudio(); });
+let tapHit = false;
+intro.addEventListener('pointerup', () => {
+  if (WATCH) return;
+  unlockAudio();
+  if (tapHit) { tapHit = false; ukiki(taps); }
+});
+// 우끼끼! — 칠수록 점점 높고 신나게
+function ukiki(n) {
+  if (ac.state !== 'running') return;
+  const t = ac.currentTime + .01, up = Math.pow(2, Math.min(n - 1, 5) / 12);
+  const out = ac.createGain(), bp = ac.createBiquadFilter();
+  out.gain.value = .55; bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = .8;
+  bp.connect(out); out.connect(ac.destination);
+  // [시작, 길이, 시작음, 끝음] : 우~ 끼 끼
+  [[0, .16, 330, 520], [.17, .09, 950, 1500], [.28, .1, 1000, 1600]].forEach(([d, len, f0, f1]) => {
+    const o = ac.createOscillator(), g = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0 * up, t + d); o.frequency.exponentialRampToValueAtTime(f1 * up, t + d + len * .7);
+    o.frequency.exponentialRampToValueAtTime(f1 * up * .8, t + d + len);
+    lfo.frequency.value = 38; lg.gain.value = f1 * up * .04; lfo.connect(lg); lg.connect(o.frequency); // 떨리는 원숭이 목소리
+    g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(1, t + d + .015);
+    g.gain.exponentialRampToValueAtTime(.0001, t + d + len);
+    o.connect(g); g.connect(bp); o.start(t + d); o.stop(t + d + len + .02); lfo.start(t + d); lfo.stop(t + d + len + .02);
+  });
+}
 addEventListener('resize', () => { if (introOn) sizeIntro(); });
 let formAt = null, pourX = OUT / 2, pourW = 24;
 const maskCv = mkc(LW), mctx = maskCv.getContext('2d');
@@ -574,6 +634,9 @@ function compose(now) {
     m.data[i + 3] = d.data[i] + d.data[i + 1] + d.data[i + 2] > 60 ? 255 : 0;
   }
   mctx.putImageData(m, 0, 0);
+  mctx.globalCompositeOperation = 'source-atop';
+  FILL_HEARTS.forEach(([x, y, sz, rot]) => heart(mctx, x, y, sz, .85, rot));
+  mctx.globalCompositeOperation = 'source-over';
   octx.fillStyle = '#000'; octx.fillRect(0, 0, OUT, OUT);
   const level = OUT - easeIO(clamp((f - 1.1) / 2)) * OUT;
   const col = Math.min(LW - 1, Math.max(0, Math.round(pourX / OUT * LW)));
@@ -589,7 +652,7 @@ function compose(now) {
     for (let y = head; y >= 0; y -= 12) octx.lineTo(pourX - w / 2 + Math.sin(y * .03 + f * 8) * 1.5, y);
     octx.closePath(); octx.fill();
     octx.beginPath(); octx.ellipse(pourX, head, w * .9, w * .45, 0, 0, 7); octx.fill();
-    octx.fillStyle = PINK_HI; octx.fillRect(pourX - w * .3, 0, w * .16, Math.max(0, head - 8));
+    FLOW_HEARTS.forEach(([o, dx, sz, rot]) => { const y = (o * OUT + f * 300) % OUT; if (y < head - 10) heart(octx, pourX + dx * w + Math.sin(y * .03 + f * 8) * 1.5, y, w * sz * 1.2, .85, rot); });
   }
 }
 
@@ -623,6 +686,7 @@ function overlay() {
     sctx.globalAlpha = Math.min(1, u / .5);
     pixText('HAPPY', 150, 22, '14px "Press Start 2P"', '#ff8fd0');
     pixText('BIRTHDAY!', 150, 44, '14px "Press Start 2P"', '#ff8fd0');
+    if (msgOn) { sctx.globalAlpha = .75 + .25 * Math.sin(pt * 5); pixText('♥ 메시지가 왔어요 ♥', 150, 284, 'bold 15px "Gowun Dodum"', '#ffe14d'); }
   }
   sctx.restore();
 }
