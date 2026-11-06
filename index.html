@@ -41,28 +41,28 @@
   @keyframes rise { 0% { transform: translateY(0) rotate(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-230px) rotate(25deg); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .lyrics, .lyrics * { animation: none !important; } }
 
-  /* 글래스모피즘 버튼 */
-  #app { background:
-      radial-gradient(55% 28% at 12% 78%, rgba(255,55,120,.38), transparent 70%),
-      radial-gradient(50% 26% at 92% 66%, rgba(90,110,255,.36), transparent 70%),
-      radial-gradient(45% 22% at 60% 96%, rgba(255,200,80,.22), transparent 70%),
-      #000; min-height: 100vh; }
-  .row { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+  /* 케이크 버튼: 분홍 대리석 + 파란 글씨 + 윗면 스프링클 + 케이크 옆면 두께 */
+  .row { display: flex; flex-direction: column; gap: 16px; width: 100%; }
   button, .btn {
-    -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 54px; padding: 15px 20px;
-    font: 600 17px -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple SD Gothic Neo', 'Gowun Dodum', system-ui, sans-serif;
-    letter-spacing: -.2px; text-align: center; text-decoration: none; cursor: pointer; color: #fff;
-    background: linear-gradient(135deg, rgba(255,90,140,.42), rgba(255,55,95,.22));
-    border: 1px solid rgba(255,255,255,.28); border-radius: 18px;
-    -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.35);
-    text-shadow: 0 1px 2px rgba(0,0,0,.25);
-    transition: transform .12s ease, background .2s, box-shadow .2s;
+    -webkit-appearance: none; appearance: none; position: relative; display: block; width: 100%; min-height: 56px; padding: 20px 18px 13px;
+    font: 700 18px 'Gowun Dodum', sans-serif; letter-spacing: .5px; text-align: center; text-decoration: none; cursor: pointer;
+    color: #1414e6; text-shadow: 1px 1px 0 rgba(255,255,255,.55);
+    background: var(--marble, #e2a0d4) center / 100% 100%, #e2a0d4; image-rendering: pixelated;
+    border: 3px solid #b06aa0; border-radius: 12px;
+    box-shadow: 0 7px 0 #8e4f82, 0 10px 18px rgba(0,0,0,.45);
+    transition: transform .08s, box-shadow .08s;
     -webkit-tap-highlight-color: transparent;
   }
-  button:active, .btn:active { transform: scale(.97); background: linear-gradient(135deg, rgba(255,90,140,.55), rgba(255,55,95,.32)); }
-  button.ghost { background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.05)); border-color: rgba(255,255,255,.22); }
-  button.ghost:active { background: linear-gradient(135deg, rgba(255,255,255,.26), rgba(255,255,255,.1)); }
+  button::before, .btn::before {
+    content: ''; position: absolute; left: 10px; right: 10px; top: 6px; height: 7px; pointer-events: none;
+    background:
+      radial-gradient(circle, #f6e05a 2.6px, transparent 3.2px) 0 0 / 28px 7px,
+      radial-gradient(circle, #8fd47a 2.6px, transparent 3.2px) 7px 0 / 28px 7px,
+      radial-gradient(circle, #ffffff 2.6px, transparent 3.2px) 14px 0 / 28px 7px,
+      radial-gradient(circle, #9fd8ff 2.6px, transparent 3.2px) 21px 0 / 28px 7px;
+  }
+  button:active, .btn:active { transform: translateY(5px); box-shadow: 0 2px 0 #8e4f82, 0 4px 10px rgba(0,0,0,.45); }
+  button.ghost { background: linear-gradient(rgba(255,255,255,.42), rgba(255,255,255,.42)), var(--marble, #e2a0d4) center / 100% 100%, #f0d0ea; }
   button:disabled { opacity: .4; cursor: default; }
   .status { display: flex; align-items: center; gap: 10px; font: 12px 'Press Start 2P', monospace; color: #ff4d4d; min-height: 16px; }
   .status .dot { width: 10px; height: 10px; background: #ff3b3b; animation: blink 1s steps(1) infinite; }
@@ -76,7 +76,7 @@
 </style>
 </head>
 <body class="lock">
-<div id="intro"><canvas id="ic" aria-label="뒤돌아보는 원숭이"></canvas><div class="tap" id="tap" hidden>🍑 엉덩이를 톡톡 쳐 주세요</div></div>
+<div id="intro"><canvas id="ic" aria-label="뒤돌아보는 원숭이"></canvas><div class="tap" id="tap" hidden>엉덩이를 톡톡 쳐 주세요</div></div>
 <div id="app">
 <div class="wrap">
 <main>
@@ -95,22 +95,22 @@
   </div>
 
   <div class="row" id="ctrl">
-    <button id="rec">🎤 노래 녹음 시작</button>
-    <button id="wishPrev" class="ghost">🙏 소원 빌기 미리 보기</button>
-    <button id="relight" class="ghost" hidden>🕯 초 다시 켜기</button>
-    <button id="replay" class="ghost" hidden>🐒 원숭이부터 다시</button>
+    <button id="rec">노래 녹음 시작</button>
+    <button id="wishPrev" class="ghost">소원 빌기 미리 보기</button>
+    <button id="relight" class="ghost" hidden>초 다시 켜기</button>
+    <button id="replay" class="ghost" hidden>원숭이부터 다시</button>
   </div>
   <div class="status" id="status" hidden><span class="dot"></span><span id="time">00:00</span><span class="meter"><i id="lvl"></i></span></div>
   <div class="row" id="ctrlRec" hidden>
-    <button id="wish" class="ghost">🙏 지금 소원 빌기</button>
-    <button id="stop" class="ghost">■ 녹음 끝</button>
+    <button id="wish" class="ghost">지금 소원 빌기</button>
+    <button id="stop" class="ghost">녹음 끝</button>
   </div>
-  <div class="row"><button id="blow" hidden>💨 후~ (버튼으로 끄기)</button></div>
+  <div class="row"><button id="blow" hidden>후~ 버튼으로 끄기</button></div>
 
   <div class="result" id="result" hidden>
     <video id="preview" controls playsinline></video>
     <div class="row">
-      <a class="btn" id="dl" download>⬇ 영상 저장</a>
+      <a class="btn" id="dl" download>영상 저장</a>
       <button id="share" class="ghost" hidden>보내기</button>
       <button id="again" class="ghost">다시 녹음</button>
     </div>
@@ -547,6 +547,11 @@ $('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
 $('relight').onclick = relight;
 $('replay').onclick = showIntro;
+(() => {
+  const big = document.createElement('canvas'); big.width = 640; big.height = 160; marble(big.getContext('2d'), 640, 160, 7);
+  const sm = document.createElement('canvas'); sm.width = 160; sm.height = 40; sm.getContext('2d').drawImage(big, 0, 0, 160, 40);
+  document.documentElement.style.setProperty('--marble', `url(${sm.toDataURL()})`);
+})();
 // 가사: 글자 쪼개기 + 한 줄씩 노래방 강조
 const splitChars = el => { const t = el.textContent; el.textContent = ''; [...t].forEach((c, i) => { const sp = document.createElement('span'); sp.className = 'ch'; sp.style.setProperty('--i', i); sp.textContent = c; el.appendChild(sp); }); };
 document.querySelectorAll('.lyrics .line').forEach(splitChars);
@@ -570,7 +575,7 @@ function done(type) {
   show('share', !!(navigator.canShare && navigator.canShare({ files: [file] })));
   $('share').onclick = () => navigator.share({ files: [file], title: '생일 축하해요' }).catch(() => {});
   show('result', true); show('ctrl', true); updateButtons();
-  $('rec').textContent = '🎤 다시 녹음';
+  $('rec').textContent = '다시 녹음하기';
 }
 $('again').onclick = () => $('rec').click();
 </script>
