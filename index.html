@@ -20,8 +20,6 @@
   main { min-width: 0; width: 100%; max-width: 480px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
   .stage { position: relative; width: 100%; aspect-ratio: 1; }
   #out { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-  .count { position: absolute; inset: 0; display: grid; place-items: center; font: 72px 'Press Start 2P', monospace; color: var(--pink); text-shadow: 4px 4px 0 var(--blue); pointer-events: none; }
-  .count:empty { display: none; }
   @keyframes pulse { 50% { opacity: .35; } }
   /* 가사 상자: 깜빡이는 테두리 + 통통 튀는 글자 + 노래방 강조 + 떠오르는 음표 */
   .lyrics { position: relative; width: 100%; text-align: center; font-size: 21px; line-height: 1.9; padding: 14px 12px 16px; border: 3px dashed #ff8fd0; overflow: hidden; animation: frame 1.2s steps(1) infinite, glow 2.4s ease-in-out infinite; }
@@ -69,14 +67,14 @@
   }
   button.ghost:active { box-shadow: inset 4px 4px 0 #6e6e8c, inset -4px -4px 0 #ffffff, 0 0 0 3px #000, 3px 3px 0 3px #ff8fd0; }
   button:disabled { opacity: .4; cursor: default; }
-  .status { display: flex; align-items: center; gap: 10px; font: 12px 'Press Start 2P', monospace; color: #ff4d4d; min-height: 16px; }
-  .status .dot { width: 10px; height: 10px; background: #ff3b3b; animation: blink 1s steps(1) infinite; }
-  .meter { width: 120px; height: 8px; background: #222; }
-  .meter i { display: block; height: 100%; width: 0; background: #5cff8a; }
-  @keyframes blink { 50% { opacity: 0; } }
-  .result { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .result video { width: 100%; background: #000; border: 2px solid var(--line); }
-  .hint { font-size: 13px; color: #999; text-align: center; line-height: 1.6; }
+  .recbox { width: 100%; display: flex; flex-direction: column; gap: 18px; }
+  .hint { margin: 0; font-size: 14px; color: #bbb; line-height: 1.8; }
+  .hint b { color: #ffe14d; font-weight: 400; }
+  .recst { margin: 0; min-height: 1em; text-align: center; font: 13px 'Galmuri11', monospace; color: #ff8fd0; }
+  .sync { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .sync input { flex: 1; min-width: 0; accent-color: #ff8fd0; }
+  .sync span { width: 52px; text-align: right; font: 12px 'Galmuri11', monospace; }
+  .recbox audio { width: 100%; }
   [hidden] { display: none !important; }
   /* 받는 사람 화면(?watch): 녹음 도구는 숨기고 영상만 */
   #watchVid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; image-rendering: pixelated; }
@@ -92,7 +90,6 @@
   <div class="stage">
     <canvas id="out" width="720" height="720" aria-label="돌아가는 생일 케이크"></canvas>
     <video id="watchVid" playsinline preload="auto" hidden></video>
-    <div class="count" id="count"></div>
   </div>
 
   <div class="row" id="watchEnd" hidden><button id="watchAgain">다시 보기</button></div>
@@ -107,27 +104,32 @@
   </div>
 
   <div class="row" id="ctrl">
-    <button id="rec">노래 녹음 시작</button>
-    <button id="wishPrev" class="ghost">소원 빌기 미리 보기</button>
-    <button id="relight" class="ghost" hidden>초 다시 켜기</button>
+    <button id="blow" hidden>후~ 촛불 끄기</button>
+    <button id="sing" hidden>생일 노래 듣기</button>
     <button id="replay" class="ghost" hidden>원숭이부터 다시</button>
   </div>
-  <div class="status" id="status" hidden><span class="dot"></span><span id="time">00:00</span><span class="meter"><i id="lvl"></i></span></div>
-  <div class="row" id="ctrlRec" hidden>
-    <button id="wish" class="ghost">지금 소원 빌기</button>
-    <button id="stop" class="ghost">녹음 끝</button>
-  </div>
-  <div class="row"><button id="blow" hidden>후~ 버튼으로 끄기</button></div>
 
-  <div class="result" id="result" hidden>
-    <video id="preview" controls playsinline></video>
+  <!-- 나만 쓰는 녹음 페이지 (?rec) -->
+  <div class="recbox" id="recbox" hidden>
+    <p class="hint">나만 쓰는 녹음 페이지예요. 엄마 화면에는 안 보여요.<br>
+      1. <b>이어폰을 꼭 끼고</b> '노래 녹음 시작'을 눌러요. 딱딱딱 소리 다음 한 마디 뒤에 노래가 시작돼요.<br>
+      2. '반주랑 같이 들어 보기'로 확인해요. 박자가 밀리면 타이밍을 조절해요.<br>
+      3. 저장한 song.wav, message.wav를 프로젝트의 <b>voice</b> 폴더에 넣어요.</p>
     <div class="row">
-      <a class="btn" id="dl" download>영상 저장</a>
-      <button id="share" class="ghost" hidden>보내기</button>
-      <button id="again" class="ghost">다시 녹음</button>
+      <button id="rSong">노래 녹음 시작</button>
+      <button id="rMsg" class="ghost">메시지 녹음 시작</button>
+    </div>
+    <p class="recst" id="recSt"></p>
+    <div class="row" id="rSongDone" hidden>
+      <button id="rPlay" class="ghost">반주랑 같이 들어 보기</button>
+      <label class="sync">목소리 타이밍 <input type="range" id="rOff" min="-300" max="300" step="10" value="0"><span id="rOffV">0ms</span></label>
+      <a class="btn" id="rSongDl" download="song.wav">song.wav 저장</a>
+    </div>
+    <div class="row" id="rMsgDone" hidden>
+      <audio id="rMsgAudio" controls></audio>
+      <a class="btn" id="rMsgDl" download="message.wav">message.wav 저장</a>
     </div>
   </div>
-  <p class="hint">녹음 버튼을 누르면 3초 뒤 시작해요.<br>노래가 끝나면 자동으로 '소원을 빌어요' 멘트가 나와요. 이어서 마이크에 '후~' 불어 주세요.<br>촛불이 꺼지고 몇 초 뒤 녹음이 자동으로 끝나요. 녹음 중엔 이 탭을 벗어나지 마세요.</p>
 </main>
 </div>
 </div>
@@ -237,8 +239,7 @@ function dither() {
 }
 
 /* ================= 소원 & 촛불 끄기 ================= */
-let phase = 'idle', phaseAt = 0, blowAcc = 0, micLevel = 0, autoStopT;
-let mode = 'cake', counting = false;
+let phase = 'idle', phaseAt = 0;
 const nowS = () => performance.now() / 1000;
 const WICK_Y = TOPY + .68;
 const smoke = [], puffGeo = new THREE.SphereGeometry(1, 8, 6);
@@ -259,22 +260,166 @@ function updSmoke(pt) {
   });
 }
 function clearSmoke() { smoke.forEach(m => { scene.remove(m); m.material.dispose(); }); smoke.length = 0; }
-function setPhase(p) { phase = p; phaseAt = nowS(); blowAcc = 0; updateButtons(); }
-function startWish() { if (phase !== 'idle') return; setPhase('wish'); setTimeout(() => { if (phase === 'wish') setPhase('blow'); }, 4000); }
+function setPhase(p) { phase = p; phaseAt = nowS(); updateButtons(); }
+let wishT;
+function startWish() { if (phase !== 'idle') return; setPhase('wish'); clearTimeout(wishT); wishT = setTimeout(() => { if (phase === 'wish') setPhase('blow'); }, 4000); }
+let msgSrc;
 function blowOut() {
   if (phase !== 'blow') return;
-  setPhase('out'); spawnSmoke();
-  if (recorder && recorder.state === 'recording') autoStopT = setTimeout(stop, 5500);
-  else setTimeout(closeMic, 800);
+  setPhase('out'); spawnSmoke(); sfxBlow();
+  // 팡파르가 끝나면 내 목소리 메시지
+  if (VOICE.message && ac && ac.state === 'running') msgSrc = playVoice(VOICE.message, ac.currentTime + 3.2, ac.destination);
 }
-function relight() { clearTimeout(autoStopT); clearSmoke(); flame.visible = true; flame.rotation.z = 0; glow.intensity = .5; setPhase('idle'); }
+function relight() { clearTimeout(wishT); if (msgSrc) { try { msgSrc.stop(); } catch (e) {} msgSrc = null; } clearSmoke(); flame.visible = true; flame.rotation.z = 0; glow.intensity = .5; setPhase('idle'); }
 function updateButtons() {
-  const rec = !!(recorder && recorder.state === 'recording'), cakeOn = mode === 'cake';
-  document.getElementById('wish').hidden = !(rec && cakeOn && phase === 'idle');
-  document.getElementById('blow').hidden = phase !== 'blow';
-  document.getElementById('wishPrev').hidden = rec || !cakeOn || phase !== 'idle';
-  document.getElementById('relight').hidden = rec || phase !== 'out';
-  document.getElementById('replay').hidden = rec || !cakeOn;
+  const ready = !introOn && !WATCH && !REC;
+  document.getElementById('blow').hidden = !ready || phase !== 'blow';
+  const sing = document.getElementById('sing');
+  sing.hidden = !ready || songOn || phase === 'wish' || phase === 'blow';
+  sing.textContent = songPlayed ? '생일 노래 다시 듣기' : '생일 노래 듣기';
+  sing.className = phase === 'out' || !songPlayed ? '' : 'ghost';
+  document.getElementById('replay').hidden = !ready;
+}
+
+/* ================= 8비트 생일 노래 (Web Audio로 직접 합성) ================= */
+let ac, master, bus, vbus, noiseBuf, PULSE = {}, songOn = false, songPlayed = false, songTimers = [];
+const BEAT = .42, INTRO = 5, SONG_LEN = (30 + INTRO) * BEAT + .6, hz = n => 440 * Math.pow(2, (n - 69) / 12); // 신나게 조금 빠른 템포
+// [음(MIDI), 박자] — 줄마다 가사 한 줄
+const MEL = [
+  [[67, .75], [67, .25], [69, 1], [67, 1], [72, 1], [71, 2]],
+  [[67, .75], [67, .25], [69, 1], [67, 1], [74, 1], [72, 2]],
+  [[67, .75], [67, .25], [79, 1], [76, 1], [72, 1], [71, 1], [69, 2]],
+  [[77, .75], [77, .25], [76, 1], [72, 1], [74, 1], [72, 3]],
+];
+// 박자마다 화음 (0박 = 첫 '생'), 26~29박은 밴드 엔딩
+const CHORD = 'CCCCGGGGGGCCCCCCFFFFCCGCCCCCCC';
+const ROOT = { C: 48, G: 43, F: 41 }, TRIAD = { C: [60, 64, 67], G: [59, 62, 67], F: [60, 65, 69] };
+function audio() {
+  if (!ac) {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    master = ac.createGain(); master.gain.value = .2; master.connect(ac.destination);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    // 옛날 게임기 같은 펄스파 (25%: 멜로디, 12.5%: 기타 반주)
+    [.25, .125].forEach(duty => {
+      const n = 32, re = new Float32Array(n), im = new Float32Array(n);
+      for (let k = 1; k < n; k++) re[k] = 2 * Math.sin(Math.PI * k * duty) / (Math.PI * k);
+      PULSE[duty] = ac.createPeriodicWave(re, im);
+    });
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {} // 아이폰 무음 스위치여도 소리 나게
+  }
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  return ac;
+}
+// 소리는 사용자가 화면을 누른 순간에만 깨울 수 있어서, 원숭이를 톡톡 칠 때 미리 깨워 둬요
+function unlockAudio() {
+  const a = audio(), s = a.createBufferSource();
+  s.buffer = a.createBuffer(1, 1, 22050); s.connect(a.destination); s.start(0);
+  decodeVoices();
+}
+function tone(dest, f, t, d, type, vol) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  if (typeof type === 'string') o.type = type; else o.setPeriodicWave(type);
+  o.frequency.value = f;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01);
+  g.gain.setValueAtTime(vol, t + d * .75); g.gain.linearRampToValueAtTime(0, t + d * .95);
+  o.connect(g); g.connect(dest); o.start(t); o.stop(t + d);
+}
+// 드럼: 노이즈와 사인파로 만든 킥·스네어·하이햇·심벌
+function noise(dest, t, len, vol, ftype, freq) {
+  const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = noiseBuf; f.type = ftype; f.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + len);
+  s.connect(f); f.connect(g); g.connect(dest); s.start(t, Math.random() * .5); s.stop(t + len);
+}
+function kick(dest, t) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(40, t + .13);
+  g.gain.setValueAtTime(1.6, t); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
+  o.connect(g); g.connect(dest); o.start(t); o.stop(t + .23);
+}
+function snare(dest, t, v = 1) { noise(dest, t, .16, .9 * v, 'highpass', 1200); tone(dest, 190, t, .07, 'triangle', .6 * v); }
+const hat = (dest, t, v) => noise(dest, t, .045, v, 'highpass', 7000);
+const crash = (dest, t) => noise(dest, t, 1.3, .55, 'highpass', 4500);
+const stick = (dest, t) => noise(dest, t, .03, 1, 'bandpass', 2800);
+function stopSong() {
+  songTimers.forEach(clearTimeout); songTimers = [];
+  if (bus) { bus.disconnect(); bus = null; }
+  if (vbus) { vbus.disconnect(); vbus = null; }
+  if (songOn) { songOn = false; restartLyrics(); }
+}
+// onEnd: 노래가 끝났을 때 할 일 (기본은 소원 빌기). 돌려주는 값 = 노래가 시작되는 오디오 시각
+function playSong(onEnd = startWish) {
+  stopSong(); audio(); relight();
+  bus = ac.createGain(); bus.connect(master);
+  const lead = .25, t0 = ac.currentTime + lead, T = m => t0 + (m + INTRO) * BEAT; // m = 멜로디 박자
+  // 내 목소리가 있으면 반주를 살짝 줄이고 같이 틀어요
+  const voice = REC ? recPreview : VOICE.song;
+  master.gain.value = voice ? .14 : .2;
+  if (voice) { vbus = ac.createGain(); vbus.connect(ac.destination); playVoice(voice, t0, vbus); }
+  clearInterval(lyricTimer); setLine(-1);
+  // 딱 딱 딱 — 드럼 스틱 카운트
+  [-5, -4, -3].forEach(m => stick(bus, T(m)));
+  // 멜로디 (+ 한 옥타브 위 살짝 메아리)
+  let b = 0;
+  MEL.forEach((ph, li) => {
+    const at = b;
+    songTimers.push(setTimeout(() => setLine(li), (lead + (at + INTRO) * BEAT) * 1000));
+    ph.forEach(([n, d]) => {
+      tone(bus, hz(n), T(b), d * BEAT, PULSE[.25], .45);
+      tone(bus, hz(n + 12), T(b) + .07, d * BEAT, PULSE[.25], .06);
+      b += d;
+    });
+  });
+  // 밴드: 인트로 한 마디(-2박)부터 엔딩 직전(27박)까지
+  for (let m = -2; m <= 27; m++) {
+    const c = CHORD[Math.max(0, m)], r = ROOT[c], pos = ((m - 1) % 3 + 3) % 3;
+    // 통통 튀는 베이스 (8분음표 옥타브)
+    tone(bus, hz(r), T(m), BEAT * .5, 'triangle', .9);
+    tone(bus, hz(r + (pos === 2 ? 7 : 12)), T(m + .5), BEAT * .5, 'triangle', .7);
+    // 뒷박 기타 반주
+    TRIAD[c].forEach(n => tone(bus, hz(n), T(m + .5), BEAT * .3, PULSE[.125], .1));
+    // 드럼: 쿵 짝 (쿵)짝
+    hat(bus, T(m), .22); hat(bus, T(m + .5), .12);
+    if (pos === 0) kick(bus, T(m));
+    if (pos === 1) { snare(bus, T(m)); kick(bus, T(m + .5)); }
+    if (pos === 2) snare(bus, T(m), .7);
+  }
+  // 줄 넘어갈 때 다다다닥 필인 + 심벌
+  [0, 12, 19].forEach(m => [0, .25, .5, .75].forEach((x, i) => snare(bus, T(m + x), .5 + i * .15)));
+  [1, 13].forEach(m => crash(bus, T(m)));
+  // 엔딩: 빰빠빠빰~ 하고 다 같이 쾅!
+  [72, 76, 79, 84].forEach((n, i) => tone(bus, hz(n), T(26 + i * .5), BEAT * .5, PULSE[.25], .45));
+  [0, .25, .5, .75, 1, 1.25, 1.5, 1.75].forEach((x, i) => snare(bus, T(26 + x), .3 + i * .09));
+  kick(bus, T(28)); crash(bus, T(28)); snare(bus, T(28));
+  tone(bus, hz(84), T(28), BEAT * 2.2, PULSE[.25], .45);
+  TRIAD.C.forEach(n => tone(bus, hz(n), T(28), BEAT * 2.2, PULSE[.125], .14));
+  tone(bus, hz(36), T(28), BEAT * 2.2, 'triangle', 1);
+  songOn = songPlayed = true; updateButtons();
+  songTimers.push(setTimeout(() => { songOn = false; bus = vbus = null; restartLyrics(); updateButtons(); onEnd(); }, (lead + SONG_LEN) * 1000));
+  return t0;
+}
+// 촛불 끌 때: 후~ 바람 소리 + 축하 팡파르
+function sfxBlow() {
+  if (!ac || ac.state !== 'running') return;
+  const t = ac.currentTime, len = .9;
+  const buf = ac.createBuffer(1, ac.sampleRate * len, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const src = ac.createBufferSource(), lp = ac.createBiquadFilter(), g = ac.createGain();
+  src.buffer = buf; lp.type = 'lowpass'; lp.frequency.setValueAtTime(1800, t); lp.frequency.exponentialRampToValueAtTime(300, t + len);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.6, t + .08); g.gain.exponentialRampToValueAtTime(.0001, t + len);
+  src.connect(lp); lp.connect(g); g.connect(master); src.start(t);
+  const f0 = t + 1.4;
+  [72, 76, 79, 84].forEach((n, i) => tone(master, hz(n), f0 + i * .11, .14, 'square', .45));
+  [72, 76, 79, 84].forEach(n => tone(master, hz(n), f0 + .5, .9, 'square', .16));
+  tone(master, hz(48), f0 + .5, .9, 'triangle', .9);
+}
+async function onCakeReady() {
+  if (WATCH || REC) return;
+  audio();
+  if (ac.state !== 'running') return updateButtons(); // 소리를 못 깨웠으면 '생일 노래 듣기' 버튼으로
+  await Promise.race([decodeVoices(), new Promise(r => setTimeout(r, 1500))]);
+  playSong();
 }
 
 /* ================= 오프닝: 원숭이 전체 화면 → 분홍 크림 → 스크롤 ================= */
@@ -395,10 +540,11 @@ function startWatch() {
 }
 function showIntro() {
   if (WATCH) { watchStarted = false; watchVid.pause(); watchVid.hidden = true; watchEnd.hidden = true; }
+  stopSong(); relight();
   sizeIntro(); taps = 0; oozeAt = null; scrollAt = null; jiggleAt = -9; formAt = null;
   introT0 = performance.now() / 1000; intro.hidden = false; intro.style.transform = ''; appEl.style.transform = `translateY(${innerHeight}px)`;
   document.body.classList.add('lock'); window.scrollTo(0, 0);
-  introOn = true; requestAnimationFrame(introFrame);
+  introOn = true; updateButtons(); requestAnimationFrame(introFrame);
 }
 const TAPS_NEEDED = 5;
 intro.addEventListener('pointerdown', () => {
@@ -408,6 +554,7 @@ intro.addEventListener('pointerdown', () => {
   taps++; lastTap = s; jiggleAt = s; jAmp = .035 + taps * .013;
   if (taps >= TAPS_NEEDED) { oozeAt = s + .45; unlockWatch(); }
 });
+intro.addEventListener('pointerup', () => { if (!WATCH) unlockAudio(); });
 addEventListener('resize', () => { if (introOn) sizeIntro(); });
 let formAt = null, pourX = OUT / 2, pourW = 24;
 const maskCv = mkc(LW), mctx = maskCv.getContext('2d');
@@ -420,7 +567,7 @@ function startForm(s) {
 }
 function compose(now) {
   const f = formAt === null ? 99 : now / 1000 - formAt;
-  if (f > 4.2) { if (formAt !== null && WATCH && !watchStarted) startWatch(); formAt = null; octx.drawImage(small, 0, 0, OUT, OUT); return; }
+  if (f > 4.2) { if (formAt !== null) { if (WATCH) { if (!watchStarted) startWatch(); } else onCakeReady(); } formAt = null; octx.drawImage(small, 0, 0, OUT, OUT); return; }
   const d = sctx.getImageData(0, 0, LW, LW), m = mctx.createImageData(LW, LW);
   for (let i = 0; i < d.data.length; i += 4) {
     m.data[i] = 226; m.data[i + 1] = 160; m.data[i + 2] = 212;
@@ -465,7 +612,7 @@ function overlay() {
       sctx.fillRect(x - 1, y - 4, 2, 8); sctx.fillRect(x - 4, y - 1, 8, 2);
     });
   } else if (phase === 'blow') {
-    if (Math.floor(pt * 2.5) % 2 === 0) pixText('후~ 하고 불어 주세요', 150, 36, 'bold 17px "Gowun Dodum"', '#ffffff');
+    if (Math.floor(pt * 2.5) % 2 === 0) pixText('케이크를 눌러 후~ 꺼 주세요', 150, 36, 'bold 17px "Gowun Dodum"', '#ffffff');
   } else if (phase === 'out' && pt > 1.4) {
     const u = pt - 1.4;
     const cc = ['#ff8fd0', '#ffe14d', '#5cff8a', '#6ec8ff', '#ffffff'];
@@ -480,7 +627,7 @@ function overlay() {
   sctx.restore();
 }
 
-let last = 0, angle = 0, camK = 0, sang = 0, quiet = 0, loud = .3, autoWished = false;
+let last = 0, angle = 0, camK = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   if (now - last >= 1000 / FPS) cakeTick(now);
@@ -503,88 +650,21 @@ function cakeTick(now) {
     } else { flame.visible = false; glow.intensity = 0; }
     updSmoke(pt);
   } else {
-    const f = 1 + (Math.random() - .5) * .3, sway = phase === 'blow' ? Math.min(1, micLevel * 1.4) : 0;
-    flame.scale.set(1 / Math.sqrt(f), f * (1 - sway * .3), 1 / Math.sqrt(f));
-    flame.rotation.z = (Math.random() - .5) * .15 - sway * .7;
+    const f = 1 + (Math.random() - .5) * .3;
+    flame.scale.set(1 / Math.sqrt(f), f, 1 / Math.sqrt(f));
+    flame.rotation.z = (Math.random() - .5) * .15;
     glow.intensity = .4 + Math.random() * .2;
-  }
-  // 노래가 끝나면(충분히 부른 뒤 2초 조용) 자동으로 소원 멘트
-  if (recorder && recorder.state === 'recording' && phase === 'idle' && !autoWished) {
-    if (micLevel > .15) { sang += dt; quiet = 0; loud = loud * .9 + micLevel * .1; }
-    else if (micLevel < Math.max(.05, loud * .3)) quiet += dt;
-    if (sang > 6 && quiet > 2) { autoWished = true; startWish(); }
-  }
-  if (phase === 'blow' && micStream && micStream.active) {
-    if (micLevel > .45) blowAcc += dt; else blowAcc = Math.max(0, blowAcc - dt * .5);
-    if (blowAcc > .25) blowOut();
   }
   renderer.render(scene, camera);
   sctx.drawImage(renderer.domElement, 0, 0); dither(); overlay();
 }
 requestAnimationFrame(frame);
 
-/* ================= 녹음 ================= */
+/* ================= 버튼 ================= */
 const $ = id => document.getElementById(id);
-let recorder, micStream, chunks = [], timer, startAt, analyser, meterRaf, fileBlob, fileName;
-const TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-const show = (id, on) => $(id).hidden = !on;
-
-// 마이크 열기: 오디오 장치는 버튼을 누른 그 순간에 깨워야 핸드폰에서 동작해요
-let ac;
-async function openMic() {
-  if (micStream && micStream.active) return true;
-  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-  if (ac.state === 'suspended') ac.resume();
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-  } catch (e) { alert('마이크를 쓸 수 없어요. 브라우저 주소창 옆에서 마이크 권한을 허용해 주세요.'); return false; }
-  if (ac.state === 'suspended') await ac.resume().catch(() => {});
-  analyser = ac.createAnalyser(); analyser.fftSize = 1024;
-  ac.createMediaStreamSource(micStream).connect(analyser);
-  const buf = new Float32Array(analyser.fftSize);
-  cancelAnimationFrame(meterRaf);
-  (function meter() {
-    analyser.getFloatTimeDomainData(buf);
-    let sum = 0; for (const v of buf) sum += v * v;
-    micLevel = Math.min(1, Math.sqrt(sum / buf.length) * 4);
-    $('lvl').style.width = micLevel * 100 + '%';
-    meterRaf = requestAnimationFrame(meter);
-  })();
-  return true;
-}
-function closeMic() { cancelAnimationFrame(meterRaf); if (micStream) micStream.getTracks().forEach(t => t.stop()); micStream = null; micLevel = 0; }
-
-$('rec').onclick = async () => {
-  if (!(await openMic())) return;
-  show('ctrl', false); show('result', false);
-  relight(); mode = 'cake'; counting = true; updateButtons();
-  for (const n of ['3', '2', '1']) { $('count').textContent = n; await new Promise(r => setTimeout(r, 1000)); }
-  $('count').textContent = ''; counting = false;
-  const type = TYPES.find(t => MediaRecorder.isTypeSupported(t));
-  const stream = new MediaStream([...out.captureStream(30).getVideoTracks(), ...micStream.getAudioTracks()]);
-  recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6000000 });
-  chunks = [];
-  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
-  recorder.onstop = () => done(type);
-  recorder.start(500);
-  startAt = Date.now(); restartLyrics(); sang = 0; quiet = 0; loud = .3; autoWished = false;
-  show('status', true); show('ctrlRec', true); updateButtons();
-  timer = setInterval(() => {
-    const s = Math.floor((Date.now() - startAt) / 1000);
-    $('time').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
-    if (s >= 120) stop();
-  }, 250);
-};
-function stop() {
-  if (!recorder || recorder.state === 'inactive') return;
-  recorder.stop(); clearInterval(timer); clearTimeout(autoStopT); closeMic();
-  show('status', false); show('ctrlRec', false);
-}
-$('stop').onclick = stop;
-$('wish').onclick = startWish;
-$('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
-$('relight').onclick = relight;
+out.addEventListener('click', blowOut); // 케이크를 눌러도 촛불이 꺼져요
+$('sing').onclick = () => { unlockAudio(); playSong(); };
 $('replay').onclick = showIntro;
 $('watchAgain').onclick = () => { if (WATCH) { watchEnd.hidden = true; watchVid.currentTime = 0; watchVid.play().catch(() => { watchVid.controls = true; }); } };
 // 가사: 글자 쪼개기 + 한 줄씩 노래방 강조
@@ -595,24 +675,124 @@ const LINES = [...document.querySelectorAll('.lyrics .line')];
 let lyricIdx = 0;
 function lyricTick() { LINES.forEach((l, i) => l.classList.toggle('on', i === lyricIdx)); lyricIdx = (lyricIdx + 1) % LINES.length; }
 let lyricTimer = setInterval(lyricTick, 2600); lyricTick();
+function setLine(k) { LINES.forEach((l, i) => l.classList.toggle('on', i === k)); }
 function restartLyrics() { clearInterval(lyricTimer); lyricIdx = 0; lyricTick(); lyricTimer = setInterval(lyricTick, 2600); }
-updateButtons();
-showIntro();
-document.fonts.load('bold 19px "Gowun Dodum"', '소원을 빌어요 후~ 하고 불어 주세요').catch(() => {});
-document.fonts.load('10px "Press Start 2P"', 'MAKE A WISH HAPPY BIRTHDAY!').catch(() => {});
-function done(type) {
-  const ext = type.includes('mp4') ? 'mp4' : 'webm';
-  fileBlob = new Blob(chunks, { type: type.split(';')[0] });
-  fileName = `생일축하-노래.${ext}`;
-  const url = URL.createObjectURL(fileBlob);
-  $('preview').src = url; $('dl').href = url; $('dl').download = fileName;
-  const file = new File([fileBlob], fileName, { type: fileBlob.type });
-  show('share', !!(navigator.canShare && navigator.canShare({ files: [file] })));
-  $('share').onclick = () => navigator.share({ files: [file], title: '생일 축하해요' }).catch(() => {});
-  show('result', true); show('ctrl', true); updateButtons();
-  $('rec').textContent = '다시 녹음하기';
+
+/* ================= 내 목소리: voice/song.*, voice/message.* ================= */
+const REC = QS.has('rec');
+const VOICE = { song: null, message: null };
+async function loadVoice(name) {
+  for (const ext of ['wav', 'm4a', 'mp3', 'mp4', 'webm']) {
+    try { const r = await fetch(`voice/${name}.${ext}`, { cache: 'no-cache' }); if (r.ok) return await r.arrayBuffer(); } catch (e) {}
+  }
+  return null;
 }
-$('again').onclick = () => $('rec').click();
+const voiceRaw = REC || WATCH ? {} : { song: loadVoice('song'), message: loadVoice('message') };
+let decoding;
+function decodeVoices() {
+  return decoding = decoding || (async () => {
+    for (const k of ['song', 'message']) {
+      const ab = await voiceRaw[k];
+      if (ab) try { VOICE[k] = await new Promise((res, rej) => ac.decodeAudioData(ab.slice(0), res, rej)); } catch (e) {}
+    }
+  })();
+}
+// 목소리 크기를 일정하게 맞춰서 재생
+function playVoice(buf, when, dest) {
+  if (buf._g === undefined) { let p = 0; const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) p = Math.max(p, Math.abs(d[i])); buf._g = Math.min(4, .9 / (p || 1)); }
+  const s = ac.createBufferSource(), g = ac.createGain();
+  s.buffer = buf; g.gain.value = buf._g; s.connect(g); g.connect(dest); s.start(when);
+  return s;
+}
+
+/* ================= 녹음 페이지 (?rec) ================= */
+let cap = null, songCap = null, songStart = 0, autoLat = 0, recPreview = null;
+const recSt = t => $('recSt').textContent = t;
+async function capStart() {
+  audio(); if (ac.state === 'suspended') await ac.resume();
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const src = ac.createMediaStreamSource(stream), proc = ac.createScriptProcessor(4096, 1, 1), mute = ac.createGain();
+  mute.gain.value = 0;
+  const c = { stream, src, proc, chunks: [], inLat: stream.getAudioTracks()[0].getSettings().latency || 0 };
+  // 마이크 소리를 오디오 시각과 함께 저장 → 반주와 정확히 맞출 수 있어요
+  proc.onaudioprocess = e => c.chunks.push([e.playbackTime - 4096 / ac.sampleRate, new Float32Array(e.inputBuffer.getChannelData(0))]);
+  src.connect(proc); proc.connect(mute); mute.connect(ac.destination);
+  return cap = c;
+}
+function capStop() {
+  const c = cap; cap = null;
+  c.proc.disconnect(); c.src.disconnect(); c.stream.getTracks().forEach(t => t.stop());
+  return c;
+}
+function capSlice(c, from, to) {
+  const sr = ac.sampleRate, n = Math.max(0, Math.round((to - from) * sr)), a = new Float32Array(n);
+  for (const [t, d] of c.chunks) {
+    const off = Math.round((t - from) * sr);
+    for (let i = 0; i < d.length; i++) { const j = off + i; if (j >= 0 && j < n) a[j] = d[i]; }
+  }
+  return a;
+}
+function wavBlob(data, sr) {
+  const b = new ArrayBuffer(44 + data.length * 2), v = new DataView(b);
+  const w = (o, s) => [...s].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + data.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, data.length * 2, true);
+  for (let i = 0; i < data.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, data[i])) * 32767, true);
+  return new Blob([b], { type: 'audio/wav' });
+}
+function micFail() { alert('마이크를 쓸 수 없어요. 브라우저 주소창 옆에서 마이크 권한을 허용해 주세요.'); }
+// 반주 시작 시각에 맞춰 목소리를 잘라 미리듣기·저장 파일 만들기
+function buildSong() {
+  const ms = +$('rOff').value, lat = autoLat + ms / 1000, sr = ac.sampleRate;
+  $('rOffV').textContent = (ms > 0 ? '+' : '') + ms + 'ms';
+  const data = capSlice(songCap, songStart + lat, songStart + lat + SONG_LEN);
+  recPreview = ac.createBuffer(1, data.length, sr); recPreview.getChannelData(0).set(data);
+  if ($('rSongDl').href) URL.revokeObjectURL($('rSongDl').href);
+  $('rSongDl').href = URL.createObjectURL(wavBlob(data, sr));
+}
+function finishSong() {
+  if (!cap) return;
+  stopSong(); songCap = capStop();
+  autoLat = (ac.outputLatency || 0) + (ac.baseLatency || 0) + songCap.inLat;
+  buildSong();
+  $('rSong').textContent = '노래 다시 녹음'; $('rMsg').disabled = false; $('rSongDone').hidden = false;
+  recSt('녹음 완료! 들어 보고 저장해 주세요');
+}
+if (REC) {
+  document.body.classList.add('rec'); $('recbox').hidden = false;
+  $('rSong').onclick = async () => {
+    if (cap) return finishSong();
+    try { await capStart(); } catch (e) { return micFail(); }
+    recPreview = null; $('rSongDone').hidden = true; $('rMsg').disabled = true;
+    $('rSong').textContent = '녹음 그만';
+    recSt('● 녹음 중… 반주에 맞춰 불러 주세요');
+    songStart = playSong(finishSong);
+  };
+  $('rOff').oninput = () => songCap && buildSong();
+  $('rPlay').onclick = () => { if (recPreview) playSong(() => {}); };
+  $('rMsg').onclick = async () => {
+    if (cap) {
+      const c = capStop(), sr = ac.sampleRate;
+      $('rMsg').textContent = '메시지 다시 녹음'; $('rSong').disabled = false;
+      if (!c.chunks.length) return recSt('');
+      const data = capSlice(c, c.chunks[0][0], c.chunks[c.chunks.length - 1][0] + 4096 / sr);
+      const url = URL.createObjectURL(wavBlob(data, sr));
+      $('rMsgAudio').src = url; $('rMsgDl').href = url; $('rMsgDone').hidden = false;
+      return recSt('메시지 녹음 완료! 들어 보고 저장해 주세요');
+    }
+    stopSong();
+    try { await capStart(); } catch (e) { return micFail(); }
+    $('rMsgDone').hidden = true; $('rSong').disabled = true;
+    $('rMsg').textContent = '메시지 녹음 끝';
+    recSt('● 메시지 녹음 중… 엄마에게 하고 싶은 말을 해 주세요');
+  };
+}
+
+updateButtons();
+if (REC) endIntro(); else showIntro();
+document.fonts.load('bold 19px "Gowun Dodum"', '소원을 빌어요 케이크를 눌러 후~ 꺼 주세요').catch(() => {});
+document.fonts.load('10px "Press Start 2P"', 'MAKE A WISH HAPPY BIRTHDAY!').catch(() => {});
 </script>
 </body>
 </html>
