@@ -16,6 +16,9 @@
   #out { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
   .count { position: absolute; inset: 0; display: grid; place-items: center; font: 72px 'Press Start 2P', monospace; color: var(--pink); text-shadow: 4px 4px 0 var(--blue); pointer-events: none; }
   .count:empty { display: none; }
+  .stage { cursor: pointer; }
+  .tap { position: absolute; left: 0; right: 0; top: 4%; text-align: center; font-size: 15px; font-weight: 700; color: #ff3f80; pointer-events: none; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
   .lyrics { width: 100%; text-align: center; font-size: 20px; line-height: 1.8; border: 2px dashed var(--line); padding: 12px; }
   .lyrics small { display: block; font: 10px 'Press Start 2P', monospace; color: #888; margin-bottom: 6px; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -43,6 +46,7 @@
   <div class="stage">
     <canvas id="out" width="720" height="720" aria-label="돌아가는 생일 케이크"></canvas>
     <div class="count" id="count"></div>
+    <div class="tap" id="tap">🌸 엉덩이를 톡톡 쳐 주세요</div>
   </div>
 
   <div class="lyrics">
@@ -54,6 +58,7 @@
     <button id="rec">🎤 노래 녹음 시작</button>
     <button id="wishPrev" class="ghost">🙏 소원 빌기 미리 보기</button>
     <button id="relight" class="ghost" hidden>🕯 초 다시 켜기</button>
+    <button id="replay" class="ghost" hidden>🐒 원숭이부터 다시</button>
   </div>
   <div class="status" id="status" hidden><span class="dot"></span><span id="time">00:00</span><span class="meter"><i id="lvl"></i></span></div>
   <div class="row" id="ctrlRec" hidden>
@@ -84,7 +89,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuff
 renderer.setPixelRatio(1); renderer.setSize(LW, LW, false);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000);
 const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-camera.position.set(0, 1.3, 5.6); camera.lookAt(0, 0.38, 0);
+camera.position.set(0, 1.6, 6.7); camera.lookAt(0, 0.72, 0);
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 const sun = new THREE.DirectionalLight(0xffffff, 0.65); sun.position.set(-2, 3, 4); scene.add(sun);
 
@@ -140,22 +145,29 @@ const candleTex = canvasTex(64, 256, (g, w, h) => {
 }, true);
 
 const cake = new THREE.Group(); scene.add(cake);
-const R0 = 1.25, CH = 1.15;
+const R0 = 1.25, CH = 1.15, R1 = .82, CH2 = .72, TOPY = CH / 2 + CH2;
+const sideTex2 = canvasTex(1024, 300, (g, w, h) => marble(g, w, h, 19), false);
 cake.add(new THREE.Mesh(new THREE.CylinderGeometry(R0, R0, CH, 64, 1), [
   new THREE.MeshLambertMaterial({ map: sideTex }),
   new THREE.MeshLambertMaterial({ map: topTex }),
   new THREE.MeshLambertMaterial({ color: 0xb06aa0 }),
 ]));
+const tier2 = new THREE.Mesh(new THREE.CylinderGeometry(R1, R1, CH2, 64, 1), [
+  new THREE.MeshLambertMaterial({ map: sideTex2 }),
+  new THREE.MeshLambertMaterial({ map: topTex }),
+  new THREE.MeshLambertMaterial({ color: 0xb06aa0 }),
+]);
+tier2.position.y = CH / 2 + CH2 / 2; cake.add(tier2);
 const candle = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, .62, 16), new THREE.MeshLambertMaterial({ map: candleTex }));
-candle.position.y = CH / 2 + .31; cake.add(candle);
+candle.position.y = TOPY + .31; cake.add(candle);
 const wick = new THREE.Mesh(new THREE.CylinderGeometry(.008, .008, .06, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-wick.position.y = CH / 2 + .65; cake.add(wick);
-const flame = new THREE.Group(); flame.position.y = CH / 2 + .74; cake.add(flame);
+wick.position.y = TOPY + .65; cake.add(wick);
+const flame = new THREE.Group(); flame.position.y = TOPY + .74; cake.add(flame);
 const fOuter = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshBasicMaterial({ color: 0xff9a20 }));
 const fInner = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshBasicMaterial({ color: 0xfff2a0 }));
 fOuter.scale.set(.05, .1, .05); fInner.scale.set(.028, .06, .028); fInner.position.y = -.02;
 flame.add(fOuter, fInner);
-const glow = new THREE.PointLight(0xffaa40, .5, 2.5); glow.position.y = CH / 2 + .8; scene.add(glow);
+const glow = new THREE.PointLight(0xffaa40, .5, 2.5); glow.position.y = TOPY + .8; scene.add(glow);
 
 // GIF 같은 색 줄이기 (4×4 디더링)
 const small = document.createElement('canvas'); small.width = small.height = LW;
@@ -172,8 +184,9 @@ function dither() {
 
 /* ================= 소원 & 촛불 끄기 ================= */
 let phase = 'idle', phaseAt = 0, blowAcc = 0, micLevel = 0, autoStopT;
+let mode = 'monkey', bloomAt = 0, counting = false;
 const nowS = () => performance.now() / 1000;
-const WICK_Y = CH / 2 + .68;
+const WICK_Y = TOPY + .68;
 const smoke = [], puffGeo = new THREE.SphereGeometry(1, 8, 6);
 function spawnSmoke() {
   for (let i = 0; i < 12; i++) {
@@ -202,11 +215,135 @@ function blowOut() {
 }
 function relight() { clearTimeout(autoStopT); clearSmoke(); flame.visible = true; flame.rotation.z = 0; glow.intensity = .5; setPhase('idle'); }
 function updateButtons() {
-  const rec = !!(recorder && recorder.state === 'recording');
-  document.getElementById('wish').hidden = !(rec && phase === 'idle');
+  const rec = !!(recorder && recorder.state === 'recording'), cakeOn = mode === 'cake';
+  document.getElementById('wish').hidden = !(rec && cakeOn && phase === 'idle');
   document.getElementById('blow').hidden = phase !== 'blow';
-  document.getElementById('wishPrev').hidden = rec || phase !== 'idle';
+  document.getElementById('wishPrev').hidden = rec || !cakeOn || phase !== 'idle';
   document.getElementById('relight').hidden = rec || phase !== 'out';
+  document.getElementById('replay').hidden = rec || !cakeOn;
+  document.getElementById('tap').hidden = mode !== 'monkey' || rec || counting;
+}
+
+/* ================= 오프닝: 원숭이 엉덩이에서 꽃이 피어요 ================= */
+const mkc = (w, h = w) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const lerp = (a, b, t) => a + (b - a) * t, clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const easeOut = t => 1 - Math.pow(1 - t, 3), easeIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const MS = OUT / 760, MX = (OUT - 650 * MS) / 2;
+const HOLE = { x: MX + 268 * MS, y: 378 * MS };
+const P = {
+  face: 'M341 162 L456 158 L447 214 C442 238 428 248 428 262 C454 270 458 312 432 330 C412 342 386 337 381 320 L378 262 C366 240 346 200 341 162 Z',
+  body: 'M118 468 C100 330 196 254 274 254 C364 254 446 322 432 452 C420 562 344 616 338 682 L222 682 C214 606 134 574 118 468 Z',
+  leg: 'M222 682 C214 606 134 574 118 468 C150 560 210 600 240 682 Z',
+  crease: 'M270 440 C266 520 262 600 268 680',
+  heart: 'M268 306 C302 330 374 328 374 386 C374 432 330 446 300 440 C284 437 272 428 268 420 C264 428 252 437 236 440 C206 446 162 432 164 386 C166 328 234 330 268 306 Z',
+};
+function buildMonkey() {
+  const layer = mkc(OUT), g = layer.getContext('2d');
+  const circ = (x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
+  g.setTransform(MS, 0, 0, MS, MX, 0);
+  let gr = g.createRadialGradient(410, 180, 10, 400, 190, 200);
+  gr.addColorStop(0, '#c4c0b0'); gr.addColorStop(.6, '#9a9b8e'); gr.addColorStop(1, '#5e6b66');
+  circ(368, 232, 122, gr);
+  g.fillStyle = '#b8a99a'; g.fillRect(486, 200, 16, 22);
+  circ(290, 200, 13, '#fff'); circ(294, 201, 8, '#2d7393');
+  g.fillStyle = '#ff3f80'; g.fill(new Path2D(P.face));
+  circ(384, 189, 18, '#fff'); circ(421, 189, 18, '#fff'); circ(386, 190, 11, '#111'); circ(423, 190, 11, '#111');
+  circ(401, 246, 2.6, '#a8234f'); circ(413, 246, 2.6, '#a8234f');
+  g.fillStyle = '#e0708f'; g.fillRect(386, 294, 34, 7);
+  gr = g.createRadialGradient(340, 350, 10, 325, 370, 390);
+  gr.addColorStop(0, '#b9b6a6'); gr.addColorStop(.55, '#8f9285'); gr.addColorStop(1, '#55635d');
+  g.fillStyle = gr; g.fill(new Path2D(P.body));
+  gr = g.createLinearGradient(0, 468, 0, 682); gr.addColorStop(0, 'rgba(63,77,73,0)'); gr.addColorStop(1, 'rgba(63,77,73,.55)');
+  g.fillStyle = gr; g.fill(new Path2D(P.leg));
+  g.strokeStyle = 'rgba(74,88,83,.45)'; g.lineWidth = 5; g.stroke(new Path2D(P.crease));
+  g.fillStyle = '#ff3f80'; g.fill(new Path2D(P.heart));
+  circ(268, 378, 4, '#5a1c32');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < 60000; i++) {
+    g.fillStyle = Math.random() < .55 ? `rgba(255,255,255,${Math.random() * .22})` : `rgba(30,40,40,${Math.random() * .16})`;
+    g.fillRect(Math.random() * OUT, Math.random() * OUT, 1.6, 1.6);
+  }
+  const c = mkc(OUT), cg = c.getContext('2d');
+  cg.fillStyle = '#ffffff'; cg.fillRect(0, 0, OUT, OUT);
+  const gx1 = MX + 500 * MS, gy0 = 680 * MS;
+  for (let i = 0; i < 30000; i++) {
+    const x = Math.random() * gx1, y = gy0 + Math.random() * (OUT - gy0);
+    if (Math.random() < (x / gx1) ** 4 * .7) continue;
+    cg.fillStyle = `rgba(20,20,20,${.35 + Math.random() * .65})`; cg.fillRect(x, y, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5);
+  }
+  cg.drawImage(layer, 0, 0);
+  return c;
+}
+const monkeyImg = buildMonkey();
+const flowerCv = mkc(OUT), fctx = flowerCv.getContext('2d');
+const PET = [{ n: 12, col: '#ff3f80', len: 1, w: .44, off: 0 }, { n: 10, col: '#ff6fa3', len: .78, w: .42, off: .31 }, { n: 8, col: '#ffb8d0', len: .55, w: .4, off: .2 }];
+function drawFlower(g, cx, cy, R, open, rot) {
+  if (R <= 0) return;
+  g.save(); g.translate(cx, cy); g.rotate(rot);
+  if (open < .5) {
+    g.fillStyle = '#5c9a5c';
+    [[-1, .5], [1, -.5]].forEach(([s, r]) => { g.save(); g.rotate(s * .9); g.beginPath(); g.ellipse(0, -R * .28, R * .16, R * .36, 0, 0, 7); g.globalAlpha = 1 - open * 2; g.fill(); g.restore(); });
+  }
+  PET.forEach(L => {
+    for (let k = 0; k < L.n; k++) {
+      let fin = k / L.n * Math.PI * 2 + L.off; if (fin > Math.PI) fin -= Math.PI * 2;
+      const a = lerp((k / L.n - .5) * .55, fin, open), len = R * L.len * lerp(.8, 1, open), w = L.w * lerp(.55, 1, open);
+      g.save(); g.rotate(a);
+      g.beginPath(); g.moveTo(0, 0);
+      g.bezierCurveTo(len * w, -len * .25, len * w * .9, -len * .85, 0, -len);
+      g.bezierCurveTo(-len * w * .9, -len * .85, -len * w, -len * .25, 0, 0);
+      g.fillStyle = L.col; g.fill();
+      g.strokeStyle = 'rgba(150,20,60,.28)'; g.lineWidth = Math.max(1, R * .008); g.stroke();
+      g.beginPath(); g.moveTo(0, -len * .15); g.lineTo(0, -len * .72); g.strokeStyle = 'rgba(255,255,255,.3)'; g.stroke();
+      g.restore();
+    }
+  });
+  if (open > 0) {
+    g.fillStyle = '#ffd84d'; g.beginPath(); g.arc(0, 0, R * .13 * open, 0, 7); g.fill();
+    g.fillStyle = '#e8a020'; for (let k = 0; k < 10; k++) { const a = k * 2.4; g.beginPath(); g.arc(Math.cos(a) * R * .07 * open, Math.sin(a) * R * .07 * open, R * .012 + .5, 0, 7); g.fill(); }
+  }
+  g.restore();
+}
+const BLOOM = 4.3;
+function drawBloom(u) {
+  let R, open = 0, cx = HOLE.x, cy = HOLE.y, rot = 0;
+  if (u < 1) R = lerp(0, 44, easeOut(clamp((u - .25) / .75)));
+  else if (u < 2) { const p = easeIO(u - 1); R = lerp(44, 100, p); open = p; rot = p * .3; }
+  else { const p = easeIO(clamp((u - 2) / 1.3)); R = lerp(100, 760, p); open = 1; rot = .3 + p * .6; cx = lerp(HOLE.x, OUT / 2, p); cy = lerp(HOLE.y, OUT / 2, p); }
+  const hp = clamp((u - 3.05) / 1.1), hole = easeIO(hp) * 1000;
+  if (hole > 0) octx.drawImage(small, 0, 0, OUT, OUT);
+  else {
+    const sq = u < .7 ? Math.sin(u / .7 * Math.PI) * .045 : 0, base = 646;
+    octx.fillStyle = '#fff'; octx.fillRect(0, 0, OUT, OUT);
+    octx.save(); octx.translate(OUT / 2, base); octx.scale(1 + sq * .6, 1 - sq); octx.translate(-OUT / 2, -base);
+    octx.drawImage(monkeyImg, 0, 0); octx.restore();
+  }
+  fctx.clearRect(0, 0, OUT, OUT);
+  drawFlower(fctx, cx, cy, R + hole * .7, open, rot + hp * .5);
+  if (hole > 0) {
+    fctx.save(); fctx.globalCompositeOperation = 'destination-out';
+    const gr = fctx.createRadialGradient(cx, cy, 0, cx, cy, hole);
+    gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.8, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    fctx.fillStyle = gr; fctx.fillRect(0, 0, OUT, OUT); fctx.restore();
+  }
+  octx.save(); octx.globalAlpha = 1 - clamp((u - 3.7) / .6); octx.drawImage(flowerCv, 0, 0); octx.restore();
+}
+let taps = 0, jiggleAt = -9;
+function startBloom() { if (mode !== 'monkey') return; mode = 'bloom'; bloomAt = performance.now() / 1000; updateButtons(); }
+function resetMonkey() { mode = 'monkey'; taps = 0; relight(); updateButtons(); }
+function compose(now) {
+  if (mode === 'monkey') {
+    const j = now / 1000 - jiggleAt, sq = j < .35 ? Math.sin(j / .35 * Math.PI * 2) * .035 * (1 - j / .35) : 0;
+    octx.fillStyle = '#fff'; octx.fillRect(0, 0, OUT, OUT);
+    octx.save(); octx.translate(OUT / 2, 646); octx.scale(1 + sq, 1 - sq); octx.translate(-OUT / 2, -646);
+    octx.drawImage(monkeyImg, 0, 0); octx.restore();
+  }
+  else if (mode === 'bloom') {
+    const u = now / 1000 - bloomAt;
+    if (u >= BLOOM) { mode = 'cake'; updateButtons(); octx.drawImage(small, 0, 0, OUT, OUT); }
+    else drawBloom(u);
+  } else octx.drawImage(small, 0, 0, OUT, OUT);
 }
 
 // 화면 위 픽셀 글씨
@@ -246,7 +383,10 @@ function overlay() {
 let last = 0, angle = 0;
 function frame(now) {
   requestAnimationFrame(frame);
-  if (now - last < 1000 / FPS) return;
+  if (now - last >= 1000 / FPS) cakeTick(now);
+  compose(now);
+}
+function cakeTick(now) {
   const dt = Math.min(.2, (now - last) / 1000); last = now;
   angle -= dt * Math.PI * 2 / 6;
   cake.rotation.y = angle;
@@ -271,7 +411,6 @@ function frame(now) {
   }
   renderer.render(scene, camera);
   sctx.drawImage(renderer.domElement, 0, 0); dither(); overlay();
-  octx.drawImage(small, 0, 0, OUT, OUT);
 }
 requestAnimationFrame(frame);
 
@@ -308,9 +447,10 @@ function closeMic() { cancelAnimationFrame(meterRaf); if (micStream) micStream.g
 
 $('rec').onclick = async () => {
   if (!(await openMic())) return;
-  show('ctrl', false); show('result', false); relight();
+  show('ctrl', false); show('result', false);
+  relight(); mode = 'cake'; counting = true; updateButtons();
   for (const n of ['3', '2', '1']) { $('count').textContent = n; await new Promise(r => setTimeout(r, 1000)); }
-  $('count').textContent = '';
+  $('count').textContent = ''; counting = false;
   const type = TYPES.find(t => MediaRecorder.isTypeSupported(t));
   const stream = new MediaStream([...out.captureStream(30).getVideoTracks(), ...micStream.getAudioTracks()]);
   recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6000000 });
@@ -336,6 +476,13 @@ $('wish').onclick = startWish;
 $('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
 $('relight').onclick = relight;
+$('replay').onclick = resetMonkey;
+document.querySelector('.stage').onclick = () => {
+  if (mode !== 'monkey' || counting) return;
+  taps++; jiggleAt = performance.now() / 1000;
+  if (taps >= 2) setTimeout(startBloom, 250);
+};
+updateButtons();
 document.fonts.load('bold 19px "Gowun Dodum"', '소원을 빌어요 후~ 하고 불어 주세요').catch(() => {});
 document.fonts.load('10px "Press Start 2P"', 'MAKE A WISH HAPPY BIRTHDAY!').catch(() => {});
 function done(type) {
