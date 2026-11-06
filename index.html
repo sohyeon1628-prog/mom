@@ -431,7 +431,7 @@ function overlay() {
   sctx.restore();
 }
 
-let last = 0, angle = 0;
+let last = 0, angle = 0, camK = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   if (now - last >= 1000 / FPS) cakeTick(now);
@@ -440,6 +440,9 @@ function frame(now) {
 function cakeTick(now) {
   const dt = Math.min(.2, (now - last) / 1000); last = now;
   angle -= dt * Math.PI * 2 / 6;
+  // 소원 빌기~촛불 끄기 동안 카메라를 살짝 뒤로 빼서 멘트 자리 만들기
+  camK += ((phase !== 'idle' ? 1 : 0) - camK) * Math.min(1, dt * 3);
+  camera.position.set(0, 1.6 + .3 * camK, 6.7 + 1.3 * camK); camera.lookAt(0, .72 + .33 * camK, 0);
   cake.rotation.y = angle;
   if (phase === 'out') {
     const pt = nowS() - phaseAt;
