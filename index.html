@@ -13,7 +13,7 @@
   body { font-family: 'Gowun Dodum', sans-serif; min-height: 100vh; }
   body.lock { overflow: hidden; }
   .wrap { display: flex; justify-content: center; padding: 0 16px 40px; }
-  #intro { position: fixed; inset: 0; z-index: 50; background: #fff; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  #intro { position: fixed; inset: 0; z-index: 50; background: #000; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #ic { width: 100%; height: 100%; display: block; }
   #intro .tap { position: absolute; left: 0; right: 0; top: 5%; text-align: center; font-size: 19px; font-weight: 700; color: #ff3f80; pointer-events: none; animation: pulse 1.4s ease-in-out infinite; }
   main { min-width: 0; width: 100%; max-width: 480px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
@@ -259,7 +259,7 @@ function sizeIntro() {
   for (let i = 0; i < n; i++) {
     const x = Math.random() * gx1, y = gy0 + Math.random() * (IH - gy0);
     if (Math.random() < Math.pow(clamp(x / gx1), 4) * .75) continue;
-    g.fillStyle = `rgba(20,20,20,${.35 + Math.random() * .65})`; const d = (.8 + Math.random() * 1.4) * S; g.fillRect(x, y, d, d);
+    g.fillStyle = `rgba(235,235,235,${.35 + Math.random() * .65})`; const d = (.8 + Math.random() * 1.4) * S; g.fillRect(x, y, d, d);
   }
 }
 function drawMonkey(g, t, sq) {
@@ -315,7 +315,7 @@ function introFrame(now) {
   requestAnimationFrame(introFrame);
   const s = now / 1000, t = s - introT0, j = s - jiggleAt;
   const sq = j < .4 ? Math.sin(j / .4 * Math.PI * 2) * .04 * (1 - j / .4) : 0;
-  ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#fff'; ictx.fillRect(0, 0, IW, IH); ictx.drawImage(groundCv, 0, 0);
+  ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#000'; ictx.fillRect(0, 0, IW, IH); ictx.drawImage(groundCv, 0, 0);
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); drawMonkey(lctx, t, sq);
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
   ictx.drawImage(layer, 0, 0);
