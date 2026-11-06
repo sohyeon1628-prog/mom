@@ -6,6 +6,7 @@
 <title>생일 케이크</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/galmuri@2.39.9/dist/galmuri.css" rel="stylesheet">
 <style>
   :root { --bg: #000; --fg: #f4f4f4; --pink: #ff8fd0; --blue: #3a3aff; --line: #333; }
   * { box-sizing: border-box; }
@@ -41,28 +42,32 @@
   @keyframes rise { 0% { transform: translateY(0) rotate(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-230px) rotate(25deg); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .lyrics, .lyrics * { animation: none !important; } }
 
-  /* 케이크 버튼: 분홍 대리석 + 파란 글씨 + 윗면 스프링클 + 케이크 옆면 두께 */
-  .row { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+  /* 레트로 3D 픽셀 버튼: 케이크 GIF와 같은 90년대 그래픽 */
+  .row { display: flex; flex-direction: column; gap: 18px; width: 100%; padding: 0 6px 6px 0; }
   button, .btn {
-    -webkit-appearance: none; appearance: none; position: relative; display: block; width: 100%; min-height: 56px; padding: 20px 18px 13px;
-    font: 700 18px 'Gowun Dodum', sans-serif; letter-spacing: .5px; text-align: center; text-decoration: none; cursor: pointer;
-    color: #1414e6; text-shadow: 1px 1px 0 rgba(255,255,255,.55);
-    background: var(--marble, #e2a0d4) center / 100% 100%, #e2a0d4; image-rendering: pixelated;
-    border: 3px solid #b06aa0; border-radius: 12px;
-    box-shadow: 0 7px 0 #8e4f82, 0 10px 18px rgba(0,0,0,.45);
-    transition: transform .08s, box-shadow .08s;
+    -webkit-appearance: none; appearance: none; position: relative; display: block; width: 100%; min-height: 58px; padding: 16px 14px;
+    font: 15px 'Galmuri11', 'Gowun Dodum', monospace; letter-spacing: 1px; text-align: center; text-decoration: none; cursor: pointer;
+    -webkit-font-smoothing: none; color: #fff; text-shadow: 2px 2px 0 #1414e6;
+    background:
+      repeating-conic-gradient(rgba(70,0,60,.16) 0 25%, transparent 0 50%) 0 0 / 4px 4px,
+      linear-gradient(#ffb3e2, #e070b8 55%, #b8488f);
+    border: none; border-radius: 0;
+    box-shadow: inset 4px 4px 0 #ffe0f4, inset -4px -4px 0 #7e2a63, 0 0 0 3px #000, 7px 7px 0 3px #1414e6;
+    image-rendering: pixelated; transition: none;
     -webkit-tap-highlight-color: transparent;
   }
-  button::before, .btn::before {
-    content: ''; position: absolute; left: 10px; right: 10px; top: 6px; height: 7px; pointer-events: none;
-    background:
-      radial-gradient(circle, #f6e05a 2.6px, transparent 3.2px) 0 0 / 28px 7px,
-      radial-gradient(circle, #8fd47a 2.6px, transparent 3.2px) 7px 0 / 28px 7px,
-      radial-gradient(circle, #ffffff 2.6px, transparent 3.2px) 14px 0 / 28px 7px,
-      radial-gradient(circle, #9fd8ff 2.6px, transparent 3.2px) 21px 0 / 28px 7px;
+  button:active, .btn:active {
+    transform: translate(4px, 4px);
+    box-shadow: inset 4px 4px 0 #7e2a63, inset -4px -4px 0 #ffe0f4, 0 0 0 3px #000, 3px 3px 0 3px #1414e6;
   }
-  button:active, .btn:active { transform: translateY(5px); box-shadow: 0 2px 0 #8e4f82, 0 4px 10px rgba(0,0,0,.45); }
-  button.ghost { background: linear-gradient(rgba(255,255,255,.42), rgba(255,255,255,.42)), var(--marble, #e2a0d4) center / 100% 100%, #f0d0ea; }
+  button.ghost {
+    color: #1414e6; text-shadow: 2px 2px 0 #ffffff;
+    background:
+      repeating-conic-gradient(rgba(0,0,40,.12) 0 25%, transparent 0 50%) 0 0 / 4px 4px,
+      linear-gradient(#ffffff, #d4d4e6 55%, #a6a6c2);
+    box-shadow: inset 4px 4px 0 #ffffff, inset -4px -4px 0 #6e6e8c, 0 0 0 3px #000, 7px 7px 0 3px #ff8fd0;
+  }
+  button.ghost:active { box-shadow: inset 4px 4px 0 #6e6e8c, inset -4px -4px 0 #ffffff, 0 0 0 3px #000, 3px 3px 0 3px #ff8fd0; }
   button:disabled { opacity: .4; cursor: default; }
   .status { display: flex; align-items: center; gap: 10px; font: 12px 'Press Start 2P', monospace; color: #ff4d4d; min-height: 16px; }
   .status .dot { width: 10px; height: 10px; background: #ff3b3b; animation: blink 1s steps(1) infinite; }
@@ -547,11 +552,6 @@ $('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
 $('relight').onclick = relight;
 $('replay').onclick = showIntro;
-(() => {
-  const big = document.createElement('canvas'); big.width = 640; big.height = 160; marble(big.getContext('2d'), 640, 160, 7);
-  const sm = document.createElement('canvas'); sm.width = 160; sm.height = 40; sm.getContext('2d').drawImage(big, 0, 0, 160, 40);
-  document.documentElement.style.setProperty('--marble', `url(${sm.toDataURL()})`);
-})();
 // 가사: 글자 쪼개기 + 한 줄씩 노래방 강조
 const splitChars = el => { const t = el.textContent; el.textContent = ''; [...t].forEach((c, i) => { const sp = document.createElement('span'); sp.className = 'ch'; sp.style.setProperty('--i', i); sp.textContent = c; el.appendChild(sp); }); };
 document.querySelectorAll('.lyrics .line').forEach(splitChars);
