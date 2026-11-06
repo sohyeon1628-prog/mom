@@ -198,6 +198,7 @@ function blowOut() {
   if (phase !== 'blow') return;
   setPhase('out'); spawnSmoke();
   if (recorder && recorder.state === 'recording') autoStopT = setTimeout(stop, 5500);
+  else setTimeout(closeMic, 800);
 }
 function relight() { clearTimeout(autoStopT); clearSmoke(); flame.visible = true; flame.rotation.z = 0; glow.intensity = .5; setPhase('idle'); }
 function updateButtons() {
@@ -265,8 +266,8 @@ function frame(now) {
     glow.intensity = .4 + Math.random() * .2;
   }
   if (phase === 'blow' && micStream && micStream.active) {
-    if (micLevel > .6) blowAcc += dt; else blowAcc = Math.max(0, blowAcc - dt * .5);
-    if (blowAcc > .3) blowOut();
+    if (micLevel > .45) blowAcc += dt; else blowAcc = Math.max(0, blowAcc - dt * .5);
+    if (blowAcc > .25) blowOut();
   }
   renderer.render(scene, camera);
   sctx.drawImage(renderer.domElement, 0, 0); dither(); overlay();
@@ -280,10 +281,33 @@ let recorder, micStream, chunks = [], timer, startAt, analyser, meterRaf, fileBl
 const TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
 const show = (id, on) => $(id).hidden = !on;
 
-$('rec').onclick = async () => {
+// 마이크 열기: 오디오 장치는 버튼을 누른 그 순간에 깨워야 핸드폰에서 동작해요
+let ac;
+async function openMic() {
+  if (micStream && micStream.active) return true;
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === 'suspended') ac.resume();
   try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
-  } catch (e) { alert('마이크를 쓸 수 없어요. 브라우저 주소창 옆에서 마이크 권한을 허용해 주세요.'); return; }
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  } catch (e) { alert('마이크를 쓸 수 없어요. 브라우저 주소창 옆에서 마이크 권한을 허용해 주세요.'); return false; }
+  if (ac.state === 'suspended') await ac.resume().catch(() => {});
+  analyser = ac.createAnalyser(); analyser.fftSize = 1024;
+  ac.createMediaStreamSource(micStream).connect(analyser);
+  const buf = new Float32Array(analyser.fftSize);
+  cancelAnimationFrame(meterRaf);
+  (function meter() {
+    analyser.getFloatTimeDomainData(buf);
+    let sum = 0; for (const v of buf) sum += v * v;
+    micLevel = Math.min(1, Math.sqrt(sum / buf.length) * 4);
+    $('lvl').style.width = micLevel * 100 + '%';
+    meterRaf = requestAnimationFrame(meter);
+  })();
+  return true;
+}
+function closeMic() { cancelAnimationFrame(meterRaf); if (micStream) micStream.getTracks().forEach(t => t.stop()); micStream = null; micLevel = 0; }
+
+$('rec').onclick = async () => {
+  if (!(await openMic())) return;
   show('ctrl', false); show('result', false); relight();
   for (const n of ['3', '2', '1']) { $('count').textContent = n; await new Promise(r => setTimeout(r, 1000)); }
   $('count').textContent = '';
@@ -301,26 +325,15 @@ $('rec').onclick = async () => {
     $('time').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
     if (s >= 120) stop();
   }, 250);
-  const ac = new AudioContext(), src = ac.createMediaStreamSource(micStream);
-  analyser = ac.createAnalyser(); analyser.fftSize = 512; src.connect(analyser);
-  const buf = new Uint8Array(analyser.fftSize);
-  (function meter() {
-    analyser.getByteTimeDomainData(buf);
-    let peak = 0; for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
-    micLevel = peak / 128;
-    $('lvl').style.width = Math.min(100, peak / 128 * 180) + '%';
-    meterRaf = requestAnimationFrame(meter);
-  })();
 };
 function stop() {
   if (!recorder || recorder.state === 'inactive') return;
-  recorder.stop(); clearInterval(timer); clearTimeout(autoStopT); cancelAnimationFrame(meterRaf);
-  micStream.getTracks().forEach(t => t.stop()); micLevel = 0;
+  recorder.stop(); clearInterval(timer); clearTimeout(autoStopT); closeMic();
   show('status', false); show('ctrlRec', false);
 }
 $('stop').onclick = stop;
 $('wish').onclick = startWish;
-$('wishPrev').onclick = startWish;
+$('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
 $('relight').onclick = relight;
 document.fonts.load('bold 19px "Gowun Dodum"', '소원을 빌어요 후~ 하고 불어 주세요').catch(() => {});
