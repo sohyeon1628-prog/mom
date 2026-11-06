@@ -10,14 +10,18 @@
   :root { --bg: #000; --fg: #f4f4f4; --pink: #ff8fd0; --blue: #3a3aff; --line: #333; }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--fg); }
-  body { font-family: 'Gowun Dodum', sans-serif; min-height: 100vh; display: flex; justify-content: center; padding: 20px 16px 40px; }
-  main { width: 100%; max-width: 480px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  body { font-family: 'Gowun Dodum', sans-serif; min-height: 100vh; }
+  body.lock { overflow: hidden; }
+  .wrap { display: flex; justify-content: center; padding: 8px 16px 40px; }
+  .drip { display: block; width: 100%; height: 72px; }
+  #intro { position: fixed; inset: 0; z-index: 50; background: #fff; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  #ic { width: 100%; height: 100%; display: block; }
+  #intro .tap { position: absolute; left: 0; right: 0; top: 5%; text-align: center; font-size: 19px; font-weight: 700; color: #ff3f80; pointer-events: none; animation: pulse 1.4s ease-in-out infinite; }
+  main { min-width: 0; width: 100%; max-width: 480px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
   .stage { position: relative; width: 100%; aspect-ratio: 1; }
   #out { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
   .count { position: absolute; inset: 0; display: grid; place-items: center; font: 72px 'Press Start 2P', monospace; color: var(--pink); text-shadow: 4px 4px 0 var(--blue); pointer-events: none; }
   .count:empty { display: none; }
-  .stage { cursor: pointer; }
-  .tap { position: absolute; left: 0; right: 0; top: 4%; text-align: center; font-size: 15px; font-weight: 700; color: #ff3f80; pointer-events: none; animation: pulse 1.4s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .35; } }
   .lyrics { width: 100%; text-align: center; font-size: 20px; line-height: 1.8; border: 2px dashed var(--line); padding: 12px; }
   .lyrics small { display: block; font: 10px 'Press Start 2P', monospace; color: #888; margin-bottom: 6px; }
@@ -41,12 +45,15 @@
   [hidden] { display: none !important; }
 </style>
 </head>
-<body>
+<body class="lock">
+<div id="intro"><canvas id="ic" aria-label="뒤돌아보는 원숭이"></canvas><div class="tap" id="tap" hidden>🍑 엉덩이를 톡톡 쳐 주세요</div></div>
+<div id="app">
+<svg class="drip" viewBox="0 0 400 72" preserveAspectRatio="none" aria-hidden="true"><path fill="#e2a0d4" d="M0 0H400V22Q392 22 390 30Q388 58 378 58Q368 58 367 32Q366 24 352 24Q330 26 326 36Q322 46 314 46Q306 46 304 34Q300 24 280 25Q262 26 258 40Q254 68 242 68Q230 68 229 40Q227 26 205 26Q180 24 176 34Q172 44 164 44Q156 44 154 32Q151 23 130 24Q112 25 108 42Q104 62 93 62Q82 62 81 40Q80 26 60 25Q40 24 36 32Q32 44 24 44Q16 44 14 32Q12 22 0 22Z"/></svg>
+<div class="wrap">
 <main>
   <div class="stage">
     <canvas id="out" width="720" height="720" aria-label="돌아가는 생일 케이크"></canvas>
     <div class="count" id="count"></div>
-    <div class="tap" id="tap">🌸 엉덩이를 톡톡 쳐 주세요</div>
   </div>
 
   <div class="lyrics">
@@ -77,6 +84,8 @@
   </div>
   <p class="hint">녹음 버튼을 누르면 3초 뒤 시작해요.<br>노래가 끝나면 '소원 빌기' → 멘트가 나오면 마이크에 '후~' 불어 주세요.<br>촛불이 꺼지고 몇 초 뒤 녹음이 자동으로 끝나요. 녹음 중엔 이 탭을 벗어나지 마세요.</p>
 </main>
+</div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -184,7 +193,7 @@ function dither() {
 
 /* ================= 소원 & 촛불 끄기 ================= */
 let phase = 'idle', phaseAt = 0, blowAcc = 0, micLevel = 0, autoStopT;
-let mode = 'monkey', bloomAt = 0, counting = false;
+let mode = 'cake', counting = false;
 const nowS = () => performance.now() / 1000;
 const WICK_Y = TOPY + .68;
 const smoke = [], puffGeo = new THREE.SphereGeometry(1, 8, 6);
@@ -221,130 +230,133 @@ function updateButtons() {
   document.getElementById('wishPrev').hidden = rec || !cakeOn || phase !== 'idle';
   document.getElementById('relight').hidden = rec || phase !== 'out';
   document.getElementById('replay').hidden = rec || !cakeOn;
-  document.getElementById('tap').hidden = mode !== 'monkey' || rec || counting;
 }
 
-/* ================= 오프닝: 원숭이 엉덩이에서 꽃이 피어요 ================= */
+/* ================= 오프닝: 원숭이 전체 화면 → 분홍 크림 → 스크롤 ================= */
+const intro = document.getElementById('intro'), ic = document.getElementById('ic'), ictx = ic.getContext('2d');
+const appEl = document.getElementById('app'), tapEl = document.getElementById('tap');
 const mkc = (w, h = w) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 const lerp = (a, b, t) => a + (b - a) * t, clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
-const easeOut = t => 1 - Math.pow(1 - t, 3), easeIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-const MS = OUT / 760, MX = (OUT - 650 * MS) / 2;
-const HOLE = { x: MX + 268 * MS, y: 378 * MS };
-const P = {
-  face: 'M341 162 L456 158 L447 214 C442 238 428 248 428 262 C454 270 458 312 432 330 C412 342 386 337 381 320 L378 262 C366 240 346 200 341 162 Z',
-  body: 'M118 468 C100 330 196 254 274 254 C364 254 446 322 432 452 C420 562 344 616 338 682 L222 682 C214 606 134 574 118 468 Z',
-  leg: 'M222 682 C214 606 134 574 118 468 C150 560 210 600 240 682 Z',
-  crease: 'M270 440 C266 520 262 600 268 680',
-  heart: 'M268 306 C302 330 374 328 374 386 C374 432 330 446 300 440 C284 437 272 428 268 420 C264 428 252 437 236 440 C206 446 162 432 164 386 C166 328 234 330 268 306 Z',
+const easeOut = t => 1 - Math.pow(1 - t, 3), easeIn = t => t * t, easeIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const PATH = {
+  face: new Path2D('M341 162 L456 158 L447 214 C442 238 428 248 428 262 C454 270 458 312 432 330 C412 342 386 337 381 320 L378 262 C366 240 346 200 341 162 Z'),
+  body: new Path2D('M118 468 C100 330 196 254 274 254 C364 254 446 322 432 452 C420 562 344 616 338 682 L222 682 C214 606 134 574 118 468 Z'),
+  leg: new Path2D('M222 682 C214 606 134 574 118 468 C150 560 210 600 240 682 Z'),
+  crease: new Path2D('M270 440 C266 520 262 600 268 680'),
+  heart: new Path2D('M268 306 C302 330 374 328 374 386 C374 432 330 446 300 440 C284 437 272 428 268 420 C264 428 252 437 236 440 C206 446 162 432 164 386 C166 328 234 330 268 306 Z'),
 };
-function buildMonkey() {
-  const layer = mkc(OUT), g = layer.getContext('2d');
-  const circ = (x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
-  g.setTransform(MS, 0, 0, MS, MX, 0);
+const PINK = '#e2a0d4', PINK_HI = 'rgba(250,218,244,.85)';
+const circ = (g, x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
+let IW, IH, S, OX, OY, groundCv, grainPat, layer, lctx;
+function sizeIntro() {
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  IW = ic.width = Math.round(innerWidth * dpr); IH = ic.height = Math.round(innerHeight * dpr);
+  S = Math.min(IW / 400, IH / 700); OX = IW / 2 - 305 * S; OY = IH - 760 * S;
+  layer = mkc(IW, IH); lctx = layer.getContext('2d');
+  const gc = mkc(220), gg = gc.getContext('2d');
+  for (let i = 0; i < 2600; i++) { gg.fillStyle = Math.random() < .55 ? `rgba(255,255,255,${Math.random() * .25})` : `rgba(30,40,40,${Math.random() * .18})`; gg.fillRect(Math.random() * 220, Math.random() * 220, 1.6, 1.6); }
+  grainPat = lctx.createPattern(gc, 'repeat');
+  groundCv = mkc(IW, IH); const g = groundCv.getContext('2d');
+  const gx1 = OX + 500 * S, gy0 = OY + 680 * S, n = Math.min(160000, Math.max(0, gx1 * (IH - gy0) / (4 * S * S)) | 0);
+  for (let i = 0; i < n; i++) {
+    const x = Math.random() * gx1, y = gy0 + Math.random() * (IH - gy0);
+    if (Math.random() < Math.pow(clamp(x / gx1), 4) * .75) continue;
+    g.fillStyle = `rgba(20,20,20,${.35 + Math.random() * .65})`; const d = (.8 + Math.random() * 1.4) * S; g.fillRect(x, y, d, d);
+  }
+}
+function drawMonkey(g, t, sq) {
+  g.setTransform(S, 0, 0, S, OX, OY);
+  const turn = easeIO(clamp((t - .5) / 1.1));
+  g.save(); g.translate(0, -sq * 40);
   let gr = g.createRadialGradient(410, 180, 10, 400, 190, 200);
   gr.addColorStop(0, '#c4c0b0'); gr.addColorStop(.6, '#9a9b8e'); gr.addColorStop(1, '#5e6b66');
-  circ(368, 232, 122, gr);
+  circ(g, 368, 232, 122, gr);
   g.fillStyle = '#b8a99a'; g.fillRect(486, 200, 16, 22);
-  circ(290, 200, 13, '#fff'); circ(294, 201, 8, '#2d7393');
-  g.fillStyle = '#ff3f80'; g.fill(new Path2D(P.face));
-  circ(384, 189, 18, '#fff'); circ(421, 189, 18, '#fff'); circ(386, 190, 11, '#111'); circ(423, 190, 11, '#111');
-  circ(401, 246, 2.6, '#a8234f'); circ(413, 246, 2.6, '#a8234f');
+  g.save(); g.beginPath(); g.arc(368, 232, 122, 0, 7); g.clip();
+  g.globalAlpha = turn; circ(g, 290, 200, 13, '#fff'); circ(g, 294, 201, 8, '#2d7393'); g.globalAlpha = 1;
+  g.translate(400 + (1 - turn) * 160, 0); g.scale(.25 + .75 * turn, 1); g.translate(-400, 0);
+  g.fillStyle = '#ff3f80'; g.fill(PATH.face);
+  const blink = turn >= 1 && (t % 3.6) > 3.45 ? .12 : 1;
+  g.save(); g.translate(0, 189); g.scale(1, blink); g.translate(0, -189);
+  circ(g, 384, 189, 18, '#fff'); circ(g, 421, 189, 18, '#fff'); circ(g, 386, 190, 11, '#111'); circ(g, 423, 190, 11, '#111');
+  g.restore();
+  circ(g, 401, 246, 2.6, '#a8234f'); circ(g, 413, 246, 2.6, '#a8234f');
   g.fillStyle = '#e0708f'; g.fillRect(386, 294, 34, 7);
+  g.restore(); g.restore();
+  g.save(); g.translate(275, 682); g.scale(1 + sq * .6, 1 - sq); g.translate(-275, -682);
   gr = g.createRadialGradient(340, 350, 10, 325, 370, 390);
   gr.addColorStop(0, '#b9b6a6'); gr.addColorStop(.55, '#8f9285'); gr.addColorStop(1, '#55635d');
-  g.fillStyle = gr; g.fill(new Path2D(P.body));
+  g.fillStyle = gr; g.fill(PATH.body);
   gr = g.createLinearGradient(0, 468, 0, 682); gr.addColorStop(0, 'rgba(63,77,73,0)'); gr.addColorStop(1, 'rgba(63,77,73,.55)');
-  g.fillStyle = gr; g.fill(new Path2D(P.leg));
-  g.strokeStyle = 'rgba(74,88,83,.45)'; g.lineWidth = 5; g.stroke(new Path2D(P.crease));
-  g.fillStyle = '#ff3f80'; g.fill(new Path2D(P.heart));
-  circ(268, 378, 4, '#5a1c32');
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  g.globalCompositeOperation = 'source-atop';
-  for (let i = 0; i < 60000; i++) {
-    g.fillStyle = Math.random() < .55 ? `rgba(255,255,255,${Math.random() * .22})` : `rgba(30,40,40,${Math.random() * .16})`;
-    g.fillRect(Math.random() * OUT, Math.random() * OUT, 1.6, 1.6);
-  }
-  const c = mkc(OUT), cg = c.getContext('2d');
-  cg.fillStyle = '#ffffff'; cg.fillRect(0, 0, OUT, OUT);
-  const gx1 = MX + 500 * MS, gy0 = 680 * MS;
-  for (let i = 0; i < 30000; i++) {
-    const x = Math.random() * gx1, y = gy0 + Math.random() * (OUT - gy0);
-    if (Math.random() < (x / gx1) ** 4 * .7) continue;
-    cg.fillStyle = `rgba(20,20,20,${.35 + Math.random() * .65})`; cg.fillRect(x, y, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5);
-  }
-  cg.drawImage(layer, 0, 0);
-  return c;
-}
-const monkeyImg = buildMonkey();
-const flowerCv = mkc(OUT), fctx = flowerCv.getContext('2d');
-const PET = [{ n: 12, col: '#ff3f80', len: 1, w: .44, off: 0 }, { n: 10, col: '#ff6fa3', len: .78, w: .42, off: .31 }, { n: 8, col: '#ffb8d0', len: .55, w: .4, off: .2 }];
-function drawFlower(g, cx, cy, R, open, rot) {
-  if (R <= 0) return;
-  g.save(); g.translate(cx, cy); g.rotate(rot);
-  if (open < .5) {
-    g.fillStyle = '#5c9a5c';
-    [[-1, .5], [1, -.5]].forEach(([s, r]) => { g.save(); g.rotate(s * .9); g.beginPath(); g.ellipse(0, -R * .28, R * .16, R * .36, 0, 0, 7); g.globalAlpha = 1 - open * 2; g.fill(); g.restore(); });
-  }
-  PET.forEach(L => {
-    for (let k = 0; k < L.n; k++) {
-      let fin = k / L.n * Math.PI * 2 + L.off; if (fin > Math.PI) fin -= Math.PI * 2;
-      const a = lerp((k / L.n - .5) * .55, fin, open), len = R * L.len * lerp(.8, 1, open), w = L.w * lerp(.55, 1, open);
-      g.save(); g.rotate(a);
-      g.beginPath(); g.moveTo(0, 0);
-      g.bezierCurveTo(len * w, -len * .25, len * w * .9, -len * .85, 0, -len);
-      g.bezierCurveTo(-len * w * .9, -len * .85, -len * w, -len * .25, 0, 0);
-      g.fillStyle = L.col; g.fill();
-      g.strokeStyle = 'rgba(150,20,60,.28)'; g.lineWidth = Math.max(1, R * .008); g.stroke();
-      g.beginPath(); g.moveTo(0, -len * .15); g.lineTo(0, -len * .72); g.strokeStyle = 'rgba(255,255,255,.3)'; g.stroke();
-      g.restore();
-    }
-  });
-  if (open > 0) {
-    g.fillStyle = '#ffd84d'; g.beginPath(); g.arc(0, 0, R * .13 * open, 0, 7); g.fill();
-    g.fillStyle = '#e8a020'; for (let k = 0; k < 10; k++) { const a = k * 2.4; g.beginPath(); g.arc(Math.cos(a) * R * .07 * open, Math.sin(a) * R * .07 * open, R * .012 + .5, 0, 7); g.fill(); }
-  }
+  g.fillStyle = gr; g.fill(PATH.leg);
+  g.strokeStyle = 'rgba(74,88,83,.45)'; g.lineWidth = 5; g.stroke(PATH.crease);
+  g.fillStyle = '#ff3f80'; g.fill(PATH.heart);
+  circ(g, 268, 378, 4, '#5a1c32');
   g.restore();
 }
-const BLOOM = 4.3;
-function drawBloom(u) {
-  let R, open = 0, cx = HOLE.x, cy = HOLE.y, rot = 0;
-  if (u < 1) R = lerp(0, 44, easeOut(clamp((u - .25) / .75)));
-  else if (u < 2) { const p = easeIO(u - 1); R = lerp(44, 100, p); open = p; rot = p * .3; }
-  else { const p = easeIO(clamp((u - 2) / 1.3)); R = lerp(100, 760, p); open = 1; rot = .3 + p * .6; cx = lerp(HOLE.x, OUT / 2, p); cy = lerp(HOLE.y, OUT / 2, p); }
-  const hp = clamp((u - 3.05) / 1.1), hole = easeIO(hp) * 1000;
-  if (hole > 0) octx.drawImage(small, 0, 0, OUT, OUT);
-  else {
-    const sq = u < .7 ? Math.sin(u / .7 * Math.PI) * .045 : 0, base = 646;
-    octx.fillStyle = '#fff'; octx.fillRect(0, 0, OUT, OUT);
-    octx.save(); octx.translate(OUT / 2, base); octx.scale(1 + sq * .6, 1 - sq); octx.translate(-OUT / 2, -base);
-    octx.drawImage(monkeyImg, 0, 0); octx.restore();
-  }
-  fctx.clearRect(0, 0, OUT, OUT);
-  drawFlower(fctx, cx, cy, R + hole * .7, open, rot + hp * .5);
-  if (hole > 0) {
-    fctx.save(); fctx.globalCompositeOperation = 'destination-out';
-    const gr = fctx.createRadialGradient(cx, cy, 0, cx, cy, hole);
-    gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.8, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-    fctx.fillStyle = gr; fctx.fillRect(0, 0, OUT, OUT); fctx.restore();
-  }
-  octx.save(); octx.globalAlpha = 1 - clamp((u - 3.7) / .6); octx.drawImage(flowerCv, 0, 0); octx.restore();
+function stream(g, x0, y0, len, w, u, seed) {
+  if (len <= 1) return;
+  const n = 28, pts = [];
+  for (let i = 0; i <= n; i++) { const f = i / n; pts.push([x0 + Math.sin(f * 4 + seed) * 4 * f, y0 + len * f, w * (1 - .25 * f) + Math.sin(u * 6 + f * 8 + seed) * 1.2]); }
+  g.beginPath(); pts.forEach(([x, y, ww], i) => i ? g.lineTo(x + ww / 2, y) : g.moveTo(x + ww / 2, y));
+  for (let i = n; i >= 0; i--) { const [x, y, ww] = pts[i]; g.lineTo(x - ww / 2, y); }
+  g.closePath(); g.fillStyle = PINK; g.fill();
+  const [ex, ey, ew] = pts[n]; circ(g, ex, ey, ew * .78, PINK);
+  g.strokeStyle = PINK_HI; g.lineWidth = w * .18; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(x0 - w * .18, y0 + 4); g.lineTo(ex - w * .18, ey - 6); g.stroke();
 }
-let taps = 0, jiggleAt = -9;
-function startBloom() { if (mode !== 'monkey') return; mode = 'bloom'; bloomAt = performance.now() / 1000; updateButtons(); }
-function resetMonkey() { mode = 'monkey'; taps = 0; relight(); updateButtons(); }
-function compose(now) {
-  if (mode === 'monkey') {
-    const j = now / 1000 - jiggleAt, sq = j < .35 ? Math.sin(j / .35 * Math.PI * 2) * .035 * (1 - j / .35) : 0;
-    octx.fillStyle = '#fff'; octx.fillRect(0, 0, OUT, OUT);
-    octx.save(); octx.translate(OUT / 2, 646); octx.scale(1 + sq, 1 - sq); octx.translate(-OUT / 2, -646);
-    octx.drawImage(monkeyImg, 0, 0); octx.restore();
+function drawLiquid(g, u) {
+  g.setTransform(S, 0, 0, S, OX, OY);
+  stream(g, 268, 380, 700 * easeIn(clamp((u - .35) / 1.6)), 22, u, 0);
+  stream(g, 236, 436, 150 * easeOut(clamp((u - .9) / 1.4)), 12, u, 2);
+  stream(g, 302, 436, 115 * easeOut(clamp((u - 1.1) / 1.3)), 11, u, 4);
+  const br = 17 * easeOut(clamp(u / .6));
+  if (br > 0) { circ(g, 268, 380, br, PINK); circ(g, 268 - br * .35, 380 - br * .35, br * .3, PINK_HI); }
+  const lvl = easeIO(clamp((u - 1.3) / 2.4));
+  if (lvl > 0) {
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const top = IH - lvl * IH * .6, amp = 9 * S;
+    const wave = (x, off) => top + off + Math.sin(x / IW * 12 + u * 3) * amp * .5 + Math.sin(x / IW * 5 - u * 2) * amp;
+    g.beginPath(); g.moveTo(0, IH);
+    for (let x = 0; x <= IW; x += IW / 48) g.lineTo(x, wave(x, 0));
+    g.lineTo(IW, IH); g.closePath(); g.fillStyle = PINK; g.fill();
+    g.strokeStyle = PINK_HI; g.lineWidth = 2.5 * S;
+    for (let k = 1; k <= 3; k++) { g.beginPath(); for (let x = 0; x <= IW; x += IW / 48) g.lineTo(x, wave(x + k * 90, k * 26 * S)); g.stroke(); }
   }
-  else if (mode === 'bloom') {
-    const u = now / 1000 - bloomAt;
-    if (u >= BLOOM) { mode = 'cake'; updateButtons(); octx.drawImage(small, 0, 0, OUT, OUT); }
-    else drawBloom(u);
-  } else octx.drawImage(small, 0, 0, OUT, OUT);
 }
+let introOn = false, introT0 = 0, taps = 0, jiggleAt = -9, oozeAt = null, scrollAt = null;
+function introFrame(now) {
+  if (!introOn) return;
+  requestAnimationFrame(introFrame);
+  const s = now / 1000, t = s - introT0, j = s - jiggleAt;
+  const sq = j < .4 ? Math.sin(j / .4 * Math.PI * 2) * .04 * (1 - j / .4) : 0;
+  ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#fff'; ictx.fillRect(0, 0, IW, IH); ictx.drawImage(groundCv, 0, 0);
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); drawMonkey(lctx, t, sq);
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
+  ictx.drawImage(layer, 0, 0);
+  tapEl.hidden = !(t > 1.8 && oozeAt === null);
+  if (oozeAt !== null) { const u = s - oozeAt; drawLiquid(ictx, u); if (u > 2.7 && scrollAt === null) scrollAt = s; }
+  if (scrollAt !== null) {
+    const p = easeIO(clamp((s - scrollAt) / 1.3));
+    intro.style.transform = `translateY(${-p * 100}%)`; appEl.style.transform = `translateY(${(1 - p) * 100}vh)`;
+    if (p >= 1) endIntro();
+  }
+}
+function endIntro() { introOn = false; intro.hidden = true; intro.style.transform = ''; appEl.style.transform = ''; document.body.classList.remove('lock'); updateButtons(); }
+function showIntro() {
+  sizeIntro(); taps = 0; oozeAt = null; scrollAt = null; jiggleAt = -9;
+  introT0 = performance.now() / 1000; intro.hidden = false; intro.style.transform = ''; appEl.style.transform = 'translateY(100vh)';
+  document.body.classList.add('lock'); window.scrollTo(0, 0);
+  introOn = true; requestAnimationFrame(introFrame);
+}
+intro.addEventListener('pointerdown', () => {
+  const s = performance.now() / 1000;
+  if (oozeAt !== null || s - introT0 < 1.4) return;
+  taps++; jiggleAt = s;
+  if (taps >= 2) oozeAt = s + .35;
+});
+addEventListener('resize', () => { if (introOn) sizeIntro(); });
+function compose() { octx.drawImage(small, 0, 0, OUT, OUT); }
 
 // 화면 위 픽셀 글씨
 function pixText(s, x, y, font, col) {
@@ -476,13 +488,9 @@ $('wish').onclick = startWish;
 $('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
 $('relight').onclick = relight;
-$('replay').onclick = resetMonkey;
-document.querySelector('.stage').onclick = () => {
-  if (mode !== 'monkey' || counting) return;
-  taps++; jiggleAt = performance.now() / 1000;
-  if (taps >= 2) setTimeout(startBloom, 250);
-};
+$('replay').onclick = showIntro;
 updateButtons();
+showIntro();
 document.fonts.load('bold 19px "Gowun Dodum"', '소원을 빌어요 후~ 하고 불어 주세요').catch(() => {});
 document.fonts.load('10px "Press Start 2P"', 'MAKE A WISH HAPPY BIRTHDAY!').catch(() => {});
 function done(type) {
