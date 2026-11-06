@@ -686,7 +686,6 @@ function overlay() {
     sctx.globalAlpha = Math.min(1, u / .5);
     pixText('HAPPY', 150, 22, '14px "Press Start 2P"', '#ff8fd0');
     pixText('BIRTHDAY!', 150, 44, '14px "Press Start 2P"', '#ff8fd0');
-    if (msgOn) { sctx.globalAlpha = .75 + .25 * Math.sin(pt * 5); pixText('♥ 메시지가 왔어요 ♥', 150, 284, 'bold 15px "Gowun Dodum"', '#ffe14d'); }
   }
   sctx.restore();
 }
