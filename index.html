@@ -12,8 +12,7 @@
   html, body { margin: 0; background: var(--bg); color: var(--fg); }
   body { font-family: 'Gowun Dodum', sans-serif; min-height: 100vh; }
   body.lock { overflow: hidden; }
-  .wrap { display: flex; justify-content: center; padding: 8px 16px 40px; }
-  .drip { display: block; width: 100%; height: 72px; }
+  .wrap { display: flex; justify-content: center; padding: 0 16px 40px; }
   #intro { position: fixed; inset: 0; z-index: 50; background: #fff; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   #ic { width: 100%; height: 100%; display: block; }
   #intro .tap { position: absolute; left: 0; right: 0; top: 5%; text-align: center; font-size: 19px; font-weight: 700; color: #ff3f80; pointer-events: none; animation: pulse 1.4s ease-in-out infinite; }
@@ -48,7 +47,6 @@
 <body class="lock">
 <div id="intro"><canvas id="ic" aria-label="뒤돌아보는 원숭이"></canvas><div class="tap" id="tap" hidden>🍑 엉덩이를 톡톡 쳐 주세요</div></div>
 <div id="app">
-<svg class="drip" viewBox="0 0 400 72" preserveAspectRatio="none" aria-hidden="true"><path fill="#e2a0d4" d="M0 0H400V22Q392 22 390 30Q388 58 378 58Q368 58 367 32Q366 24 352 24Q330 26 326 36Q322 46 314 46Q306 46 304 34Q300 24 280 25Q262 26 258 40Q254 68 242 68Q230 68 229 40Q227 26 205 26Q180 24 176 34Q172 44 164 44Q156 44 154 32Q151 23 130 24Q112 25 108 42Q104 62 93 62Q82 62 81 40Q80 26 60 25Q40 24 36 32Q32 44 24 44Q16 44 14 32Q12 22 0 22Z"/></svg>
 <div class="wrap">
 <main>
   <div class="stage">
@@ -307,22 +305,9 @@ function stream(g, x0, y0, len, w, u, seed) {
 }
 function drawLiquid(g, u) {
   g.setTransform(S, 0, 0, S, OX, OY);
-  stream(g, 268, 380, 700 * easeIn(clamp((u - .35) / 1.6)), 22, u, 0);
-  stream(g, 236, 436, 150 * easeOut(clamp((u - .9) / 1.4)), 12, u, 2);
-  stream(g, 302, 436, 115 * easeOut(clamp((u - 1.1) / 1.3)), 11, u, 4);
-  const br = 17 * easeOut(clamp(u / .6));
+  stream(g, 268, 380, 460 * easeIn(clamp((u - .3) / 1.4)), 22, u, 0);
+  const br = 17 * easeOut(clamp(u / .5));
   if (br > 0) { circ(g, 268, 380, br, PINK); circ(g, 268 - br * .35, 380 - br * .35, br * .3, PINK_HI); }
-  const lvl = easeIO(clamp((u - 1.3) / 2.4));
-  if (lvl > 0) {
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    const top = IH - lvl * IH * .6, amp = 9 * S;
-    const wave = (x, off) => top + off + Math.sin(x / IW * 12 + u * 3) * amp * .5 + Math.sin(x / IW * 5 - u * 2) * amp;
-    g.beginPath(); g.moveTo(0, IH);
-    for (let x = 0; x <= IW; x += IW / 48) g.lineTo(x, wave(x, 0));
-    g.lineTo(IW, IH); g.closePath(); g.fillStyle = PINK; g.fill();
-    g.strokeStyle = PINK_HI; g.lineWidth = 2.5 * S;
-    for (let k = 1; k <= 3; k++) { g.beginPath(); for (let x = 0; x <= IW; x += IW / 48) g.lineTo(x, wave(x + k * 90, k * 26 * S)); g.stroke(); }
-  }
 }
 let introOn = false, introT0 = 0, taps = 0, jiggleAt = -9, oozeAt = null, scrollAt = null;
 function introFrame(now) {
@@ -335,7 +320,7 @@ function introFrame(now) {
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
   ictx.drawImage(layer, 0, 0);
   tapEl.hidden = !(t > 1.8 && oozeAt === null);
-  if (oozeAt !== null) { const u = s - oozeAt; drawLiquid(ictx, u); if (u > 2.7 && scrollAt === null) scrollAt = s; }
+  if (oozeAt !== null) { const u = s - oozeAt; drawLiquid(ictx, u); if (u > 1.9 && scrollAt === null) { scrollAt = s; startForm(s); } }
   if (scrollAt !== null) {
     const p = easeIO(clamp((s - scrollAt) / 1.3));
     intro.style.transform = `translateY(${-p * 100}%)`; appEl.style.transform = `translateY(${(1 - p) * 100}vh)`;
@@ -344,7 +329,7 @@ function introFrame(now) {
 }
 function endIntro() { introOn = false; intro.hidden = true; intro.style.transform = ''; appEl.style.transform = ''; document.body.classList.remove('lock'); updateButtons(); }
 function showIntro() {
-  sizeIntro(); taps = 0; oozeAt = null; scrollAt = null; jiggleAt = -9;
+  sizeIntro(); taps = 0; oozeAt = null; scrollAt = null; jiggleAt = -9; formAt = null;
   introT0 = performance.now() / 1000; intro.hidden = false; intro.style.transform = ''; appEl.style.transform = 'translateY(100vh)';
   document.body.classList.add('lock'); window.scrollTo(0, 0);
   introOn = true; requestAnimationFrame(introFrame);
@@ -356,7 +341,39 @@ intro.addEventListener('pointerdown', () => {
   if (taps >= 2) oozeAt = s + .35;
 });
 addEventListener('resize', () => { if (introOn) sizeIntro(); });
-function compose() { octx.drawImage(small, 0, 0, OUT, OUT); }
+let formAt = null, pourX = OUT / 2, pourW = 24;
+const maskCv = mkc(LW), mctx = maskCv.getContext('2d');
+function startForm(s) {
+  const r = out.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+  const ax = (OX + 268 * S) / dpr;
+  pourX = clamp((ax - r.left) / r.width, 0, 1) * OUT;
+  pourW = 22 * S / dpr * OUT / r.width;
+  formAt = s;
+}
+function compose(now) {
+  const f = formAt === null ? 99 : now / 1000 - formAt;
+  if (f > 4.2) { formAt = null; octx.drawImage(small, 0, 0, OUT, OUT); return; }
+  const d = sctx.getImageData(0, 0, LW, LW), m = mctx.createImageData(LW, LW);
+  for (let i = 0; i < d.data.length; i += 4) {
+    m.data[i] = 226; m.data[i + 1] = 160; m.data[i + 2] = 212;
+    m.data[i + 3] = d.data[i] + d.data[i + 1] + d.data[i + 2] > 60 ? 255 : 0;
+  }
+  mctx.putImageData(m, 0, 0);
+  octx.fillStyle = '#000'; octx.fillRect(0, 0, OUT, OUT);
+  const level = OUT - easeIO(clamp((f - 1.1) / 2)) * OUT;
+  octx.save(); octx.beginPath(); octx.rect(0, level, OUT, OUT - level); octx.clip(); octx.drawImage(maskCv, 0, 0, OUT, OUT); octx.restore();
+  const set = clamp((f - 3.1) / .9);
+  if (set > 0) { octx.globalAlpha = set; octx.drawImage(small, 0, 0, OUT, OUT); octx.globalAlpha = 1; }
+  const head = Math.min(easeIn(clamp(f / 1.1)) * OUT, level), w = pourW * (1 - clamp((f - 2.8) / .5));
+  if (w > .5 && head > 0) {
+    octx.fillStyle = PINK; octx.beginPath();
+    for (let y = 0; y <= head; y += 12) octx.lineTo(pourX + w / 2 + Math.sin(y * .03 + f * 8) * 1.5, y);
+    for (let y = head; y >= 0; y -= 12) octx.lineTo(pourX - w / 2 + Math.sin(y * .03 + f * 8) * 1.5, y);
+    octx.closePath(); octx.fill();
+    octx.beginPath(); octx.ellipse(pourX, head, w * .9, w * .45, 0, 0, 7); octx.fill();
+    octx.fillStyle = PINK_HI; octx.fillRect(pourX - w * .3, 0, w * .16, Math.max(0, head - 8));
+  }
+}
 
 // 화면 위 픽셀 글씨
 function pixText(s, x, y, font, col) {
