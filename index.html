@@ -22,16 +22,37 @@
   .count { position: absolute; inset: 0; display: grid; place-items: center; font: 72px 'Press Start 2P', monospace; color: var(--pink); text-shadow: 4px 4px 0 var(--blue); pointer-events: none; }
   .count:empty { display: none; }
   @keyframes pulse { 50% { opacity: .35; } }
-  .lyrics { width: 100%; text-align: center; font-size: 20px; line-height: 1.8; border: 2px dashed var(--line); padding: 12px; }
-  .lyrics small { display: block; font: 10px 'Press Start 2P', monospace; color: #888; margin-bottom: 6px; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  /* 가사 상자: 깜빡이는 테두리 + 통통 튀는 글자 + 노래방 강조 + 떠오르는 음표 */
+  .lyrics { position: relative; width: 100%; text-align: center; font-size: 21px; line-height: 1.9; padding: 14px 12px 16px; border: 3px dashed #ff8fd0; overflow: hidden; animation: frame 1.2s steps(1) infinite, glow 2.4s ease-in-out infinite; }
+  @keyframes frame { 0% { border-color: #ff8fd0; } 33% { border-color: #ffe14d; } 66% { border-color: #6ec8ff; } }
+  @keyframes glow { 50% { box-shadow: 0 0 22px rgba(255,143,208,.35), inset 0 0 18px rgba(110,200,255,.12); } }
+  .sing { display: block; font: 11px 'Press Start 2P', monospace; margin-bottom: 8px; }
+  .sing span { display: inline-block; animation: rainbow 1.2s steps(1) infinite, hop .6s ease-in-out infinite; animation-delay: calc(var(--i) * .08s); }
+  @keyframes rainbow { 0% { color: #ff8fd0; } 25% { color: #ffe14d; } 50% { color: #5cff8a; } 75% { color: #6ec8ff; } }
+  @keyframes hop { 50% { transform: translateY(-3px); } }
+  .line { transition: color .3s, opacity .3s, transform .3s; opacity: .5; }
+  .line.on { opacity: 1; color: #ffe14d; text-shadow: 2px 2px 0 #3a3aff; transform: scale(1.08); }
+  .line .ch { display: inline-block; white-space: pre; animation: wave 1.3s ease-in-out infinite; animation-delay: calc(var(--i) * .07s); }
+  .line.on .ch { animation-duration: .7s; }
+  @keyframes wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  .note { position: absolute; bottom: -24px; font-size: 22px; pointer-events: none; animation: rise 4s linear infinite; }
+  .note.n1 { left: 6%; color: #ff8fd0; } .note.n2 { left: 18%; color: #6ec8ff; animation-delay: 1.3s; font-size: 16px; }
+  .note.n3 { right: 8%; color: #ffe14d; animation-delay: .6s; } .note.n4 { right: 20%; color: #5cff8a; animation-delay: 2.2s; font-size: 16px; }
+  @keyframes rise { 0% { transform: translateY(0) rotate(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-230px) rotate(25deg); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .lyrics, .lyrics * { animation: none !important; } }
+
+  /* 아이폰 스타일 버튼 */
+  .row { display: flex; flex-direction: column; gap: 10px; width: 100%; }
   button, .btn {
-    font: 16px 'Gowun Dodum', sans-serif; font-weight: 700; cursor: pointer; text-decoration: none;
-    background: var(--pink); color: #000; border: none; padding: 12px 22px;
-    box-shadow: 4px 4px 0 var(--blue);
+    -webkit-appearance: none; appearance: none; display: block; width: 100%; min-height: 52px; padding: 14px 20px;
+    font: 600 17px -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple SD Gothic Neo', 'Gowun Dodum', system-ui, sans-serif;
+    letter-spacing: -.2px; text-align: center; text-decoration: none; cursor: pointer;
+    background: #ff375f; color: #fff; border: none; border-radius: 14px;
+    transition: transform .12s ease, opacity .12s ease, background-color .2s;
+    -webkit-tap-highlight-color: transparent;
   }
-  button:active, .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--blue); }
-  button.ghost { background: #222; color: var(--fg); }
+  button:active, .btn:active { transform: scale(.97); opacity: .75; }
+  button.ghost { background: rgba(118,118,128,.24); color: #fff; }
   button:disabled { opacity: .4; cursor: default; }
   .status { display: flex; align-items: center; gap: 10px; font: 12px 'Press Start 2P', monospace; color: #ff4d4d; min-height: 16px; }
   .status .dot { width: 10px; height: 10px; background: #ff3b3b; animation: blink 1s steps(1) infinite; }
@@ -54,9 +75,13 @@
     <div class="count" id="count"></div>
   </div>
 
-  <div class="lyrics">
-    <small>SING ALONG ♪</small>
-    생일 축하합니다<br>생일 축하합니다<br>사랑하는 엄마의<br>생일 축하합니다 ♪
+  <div class="lyrics" id="lyrics">
+    <small class="sing">SING ALONG ♪</small>
+    <div class="line">생일 축하합니다</div>
+    <div class="line">생일 축하합니다</div>
+    <div class="line">사랑하는 엄마의</div>
+    <div class="line">생일 축하합니다 ♪</div>
+    <span class="note n1">♪</span><span class="note n2">♫</span><span class="note n3">♪</span><span class="note n4">♫</span>
   </div>
 
   <div class="row" id="ctrl">
@@ -484,7 +509,7 @@ $('rec').onclick = async () => {
   recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
   recorder.onstop = () => done(type);
   recorder.start(500);
-  startAt = Date.now();
+  startAt = Date.now(); restartLyrics();
   show('status', true); show('ctrlRec', true); updateButtons();
   timer = setInterval(() => {
     const s = Math.floor((Date.now() - startAt) / 1000);
@@ -503,6 +528,15 @@ $('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
 $('relight').onclick = relight;
 $('replay').onclick = showIntro;
+// 가사: 글자 쪼개기 + 한 줄씩 노래방 강조
+const splitChars = el => { const t = el.textContent; el.textContent = ''; [...t].forEach((c, i) => { const sp = document.createElement('span'); sp.className = 'ch'; sp.style.setProperty('--i', i); sp.textContent = c; el.appendChild(sp); }); };
+document.querySelectorAll('.lyrics .line').forEach(splitChars);
+(() => { const t = document.querySelector('.sing'), txt = t.textContent; t.textContent = ''; [...txt].forEach((c, i) => { const sp = document.createElement('span'); sp.style.setProperty('--i', i); sp.textContent = c === ' ' ? ' ' : c; t.appendChild(sp); }); })();
+const LINES = [...document.querySelectorAll('.lyrics .line')];
+let lyricIdx = 0;
+function lyricTick() { LINES.forEach((l, i) => l.classList.toggle('on', i === lyricIdx)); lyricIdx = (lyricIdx + 1) % LINES.length; }
+let lyricTimer = setInterval(lyricTick, 2600); lyricTick();
+function restartLyrics() { clearInterval(lyricTimer); lyricIdx = 0; lyricTick(); lyricTimer = setInterval(lyricTick, 2600); }
 updateButtons();
 showIntro();
 document.fonts.load('bold 19px "Gowun Dodum"', '소원을 빌어요 후~ 하고 불어 주세요').catch(() => {});
