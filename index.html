@@ -78,17 +78,24 @@
   .result video { width: 100%; background: #000; border: 2px solid var(--line); }
   .hint { font-size: 13px; color: #999; text-align: center; line-height: 1.6; }
   [hidden] { display: none !important; }
+  /* 받는 사람 화면(?watch): 녹음 도구는 숨기고 영상만 */
+  #watchVid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; image-rendering: pixelated; }
+  body.watch main > :not(.stage):not(#watchEnd) { display: none !important; }
+  #watchEnd { width: 100%; }
 </style>
 </head>
 <body class="lock">
-<div id="intro"><canvas id="ic" aria-label="뒤돌아보는 원숭이"></canvas><div class="tap" id="tap" hidden>엉덩이를 톡톡 쳐 주세요</div></div>
+<div id="intro"><canvas id="ic" aria-label="뒤돌아보는 원숭이"></canvas><div class="tap" id="tap" hidden>엉덩이를 연달아 톡톡톡 쳐 주세요</div></div>
 <div id="app">
 <div class="wrap">
 <main>
   <div class="stage">
     <canvas id="out" width="720" height="720" aria-label="돌아가는 생일 케이크"></canvas>
+    <video id="watchVid" playsinline preload="auto" hidden></video>
     <div class="count" id="count"></div>
   </div>
+
+  <div class="row" id="watchEnd" hidden><button id="watchAgain">다시 보기</button></div>
 
   <div class="lyrics" id="lyrics">
     <small class="sing">SING ALONG ♪</small>
@@ -295,7 +302,7 @@ function sizeIntro() {
   for (let i = 0; i < 2600; i++) { gg.fillStyle = Math.random() < .55 ? `rgba(255,255,255,${Math.random() * .25})` : `rgba(30,40,40,${Math.random() * .18})`; gg.fillRect(Math.random() * 220, Math.random() * 220, 1.6, 1.6); }
   grainPat = lctx.createPattern(gc, 'repeat');
 }
-function drawMonkey(g, t, sq) {
+function drawMonkey(g, t, sq, wob = 0) {
   g.setTransform(S, 0, 0, S, OX, OY);
   const turn = easeIO(clamp((t - .5) / 1.1));
   g.save(); g.translate(0, -sq * 40);
@@ -314,15 +321,17 @@ function drawMonkey(g, t, sq) {
   circ(g, 401, 246, 2.6, '#a8234f'); circ(g, 413, 246, 2.6, '#a8234f');
   g.fillStyle = '#e0708f'; g.fillRect(386, 294, 34, 7);
   g.restore(); g.restore();
-  g.save(); g.translate(275, 682); g.scale(1 + sq * .6, 1 - sq); g.translate(-275, -682);
+  g.save(); g.translate(275, 682); g.rotate(wob); g.scale(1 + sq * .6, 1 - sq); g.translate(-275, -682);
   gr = g.createRadialGradient(340, 350, 10, 325, 370, 390);
   gr.addColorStop(0, '#b9b6a6'); gr.addColorStop(.55, '#8f9285'); gr.addColorStop(1, '#55635d');
   g.fillStyle = gr; g.fill(PATH.body);
   gr = g.createLinearGradient(0, 468, 0, 682); gr.addColorStop(0, 'rgba(63,77,73,0)'); gr.addColorStop(1, 'rgba(63,77,73,.55)');
   g.fillStyle = gr; g.fill(PATH.leg);
   g.strokeStyle = 'rgba(74,88,83,.45)'; g.lineWidth = 5; g.stroke(PATH.crease);
+  g.save(); g.translate(268, 385); g.scale(1 + sq * 1.6, 1 - sq * 1.1); g.translate(-268, -385);
   g.fillStyle = '#ff3f80'; g.fill(PATH.heart);
   circ(g, 268, 378, 4, '#5a1c32');
+  g.restore();
   g.restore();
 }
 function stream(g, x0, y0, len, w, u, seed) {
@@ -342,14 +351,15 @@ function drawLiquid(g, u) {
   const br = 17 * easeOut(clamp(u / .5));
   if (br > 0) { circ(g, 268, 380, br, PINK); circ(g, 268 - br * .35, 380 - br * .35, br * .3, PINK_HI); }
 }
+let lastTap = -9, jAmp = .04;
 let introOn = false, introT0 = 0, taps = 0, jiggleAt = -9, oozeAt = null, scrollAt = null;
 function introFrame(now) {
   if (!introOn) return;
   requestAnimationFrame(introFrame);
   const s = now / 1000, t = s - introT0, j = s - jiggleAt;
-  const sq = j < .4 ? Math.sin(j / .4 * Math.PI * 2) * .04 * (1 - j / .4) : 0;
+  const dec = j < .55 ? 1 - j / .55 : 0, sq = Math.sin(j * 30) * jAmp * dec, wob = Math.sin(j * 24 + 1) * jAmp * .6 * dec;
   ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#000'; ictx.fillRect(0, 0, IW, IH);
-  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); drawMonkey(lctx, t, sq);
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); drawMonkey(lctx, t, sq, wob);
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
   ictx.drawImage(layer, 0, 0);
   tapEl.hidden = !(t > 1.8 && oozeAt === null);
@@ -362,17 +372,41 @@ function introFrame(now) {
   }
 }
 function endIntro() { introOn = false; intro.hidden = true; intro.style.transform = ''; appEl.style.transform = ''; document.body.classList.remove('lock'); updateButtons(); }
+const QS = new URLSearchParams(location.search);
+const WATCH = (() => { const v = QS.get('v') || (QS.has('watch') ? 'birthday.mp4' : ''); return /^[\w.-]+\.(mp4|webm|mov)$/i.test(v) ? 'videos/' + v : null; })();
+const watchVid = document.getElementById('watchVid'), watchEnd = document.getElementById('watchEnd');
+let watchStarted = false, watchUnlocked = false;
+if (WATCH) {
+  document.body.classList.add('watch');
+  watchVid.src = WATCH;
+  watchVid.onended = () => { watchEnd.hidden = false; };
+  watchVid.onerror = () => { watchEnd.hidden = false; document.getElementById('watchAgain').textContent = '영상을 불러오지 못했어요'; };
+}
+function unlockWatch() {
+  if (!WATCH || watchUnlocked) return;
+  watchUnlocked = true;
+  watchVid.muted = false;
+  const pr = watchVid.play(); if (pr) pr.then(() => { watchVid.pause(); watchVid.currentTime = 0; }).catch(() => {});
+}
+function startWatch() {
+  watchStarted = true; watchEnd.hidden = true;
+  watchVid.hidden = false; watchVid.currentTime = 0; watchVid.controls = false;
+  const pr = watchVid.play(); if (pr) pr.catch(() => { watchVid.controls = true; });
+}
 function showIntro() {
+  if (WATCH) { watchStarted = false; watchVid.pause(); watchVid.hidden = true; watchEnd.hidden = true; }
   sizeIntro(); taps = 0; oozeAt = null; scrollAt = null; jiggleAt = -9; formAt = null;
   introT0 = performance.now() / 1000; intro.hidden = false; intro.style.transform = ''; appEl.style.transform = `translateY(${innerHeight}px)`;
   document.body.classList.add('lock'); window.scrollTo(0, 0);
   introOn = true; requestAnimationFrame(introFrame);
 }
+const TAPS_NEEDED = 5;
 intro.addEventListener('pointerdown', () => {
   const s = performance.now() / 1000;
   if (oozeAt !== null || s - introT0 < 1.4) return;
-  taps++; jiggleAt = s;
-  if (taps >= 2) oozeAt = s + .35;
+  if (s - lastTap > 1.2) taps = 0;
+  taps++; lastTap = s; jiggleAt = s; jAmp = .035 + taps * .013;
+  if (taps >= TAPS_NEEDED) { oozeAt = s + .45; unlockWatch(); }
 });
 addEventListener('resize', () => { if (introOn) sizeIntro(); });
 let formAt = null, pourX = OUT / 2, pourW = 24;
@@ -386,7 +420,7 @@ function startForm(s) {
 }
 function compose(now) {
   const f = formAt === null ? 99 : now / 1000 - formAt;
-  if (f > 4.2) { formAt = null; octx.drawImage(small, 0, 0, OUT, OUT); return; }
+  if (f > 4.2) { if (formAt !== null && WATCH && !watchStarted) startWatch(); formAt = null; octx.drawImage(small, 0, 0, OUT, OUT); return; }
   const d = sctx.getImageData(0, 0, LW, LW), m = mctx.createImageData(LW, LW);
   for (let i = 0; i < d.data.length; i += 4) {
     m.data[i] = 226; m.data[i + 1] = 160; m.data[i + 2] = 212;
@@ -552,6 +586,7 @@ $('wishPrev').onclick = async () => { await openMic(); startWish(); };
 $('blow').onclick = blowOut;
 $('relight').onclick = relight;
 $('replay').onclick = showIntro;
+$('watchAgain').onclick = () => { if (WATCH) { watchEnd.hidden = true; watchVid.currentTime = 0; watchVid.play().catch(() => { watchVid.controls = true; }); } };
 // 가사: 글자 쪼개기 + 한 줄씩 노래방 강조
 const splitChars = el => { const t = el.textContent; el.textContent = ''; [...t].forEach((c, i) => { const sp = document.createElement('span'); sp.className = 'ch'; sp.style.setProperty('--i', i); sp.textContent = c; el.appendChild(sp); }); };
 document.querySelectorAll('.lyrics .line').forEach(splitChars);
