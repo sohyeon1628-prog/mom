@@ -722,6 +722,7 @@ function introFrame(now) {
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
   ictx.drawImage(layer, 0, 0);
   tapEl.hidden = !(t > 1.8 && oozeAt === null);
+  tapEl.style.color = CHAR === 'dog' ? '#f7b3cb' : '#ff3f80';   // 안내 글씨 = 그 동물 엉덩이 색
   if (oozeAt !== null) { const u = s - oozeAt; drawLiquid(ictx, u); if (u > 1.9 && scrollAt === null) { scrollAt = s; startForm(s); } }
   if (scrollAt !== null) {
     const p = easeIO(clamp((s - scrollAt) / 1.3));
