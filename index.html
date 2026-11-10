@@ -75,6 +75,29 @@
   .sync input { flex: 1; min-width: 0; accent-color: #ff8fd0; }
   .sync span { width: 52px; text-align: right; font: 12px 'Galmuri11', monospace; }
   .recbox audio { width: 100%; }
+  .card { display: flex; flex-direction: column; gap: 12px; padding: 18px 16px 20px; border: 3px dashed #3a3a3a; background: rgba(255,255,255,.03); }
+  .card h2 { margin: 0; display: flex; align-items: center; gap: 10px; font: 15px 'Galmuri11', monospace; color: #fff; }
+  .card h2 em { font-style: normal; font-size: 12px; color: #888; }
+  .num { display: inline-grid; place-items: center; width: 26px; height: 26px; background: #ff8fd0; color: #000; box-shadow: 2px 2px 0 #1414e6; }
+  .card small { color: #999; font-size: 12.5px; line-height: 1.6; }
+  .card small b { color: #ffe14d; font-weight: 400; }
+  .card small.center { text-align: center; margin-top: -4px; }
+  .card input.name { font: 18px 'Galmuri11', 'Gowun Dodum', monospace; color: #fff; background: #111; border: 3px solid #ff8fd0; border-radius: 0; padding: 13px 12px; outline: none; width: 100%; }
+  .card input.name:focus { border-color: #ffe14d; }
+  .card.result:has(#shareOut[hidden]):has(#shareSt:empty) { display: none; }
+  .card.result { border-color: #ff8fd0; }
+  .or { text-align: center; font: 12px 'Galmuri11', monospace; color: #777; margin: -4px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 6px 6px 0; }
+  .grid2 button, .grid2 .btn { min-height: 52px; padding: 14px 6px; font-size: 14px; }
+  button.sm, .btn.sm { min-height: 44px; padding: 10px 6px; font-size: 13px; }
+  .mini { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: #111; border-left: 4px solid #ff8fd0; }
+  .tag { font: 12px 'Galmuri11', monospace; color: #ff8fd0; }
+  .links { display: flex; justify-content: center; gap: 22px; flex-wrap: wrap; }
+  button.link { all: unset; cursor: pointer; font-size: 13px; color: #9a9a9a; text-decoration: underline; text-underline-offset: 3px; }
+  button.link::before { content: none; }
+  .owner { font-size: 13px; color: #777; }
+  .owner summary { cursor: pointer; }
+  a.btn.ghost { color: #1414e6; text-shadow: 2px 2px 0 #fff; background: repeating-conic-gradient(rgba(0,0,40,.12) 0 25%, transparent 0 50%) 0 0 / 4px 4px, linear-gradient(#ffffff, #d4d4e6 55%, #a6a6c2); box-shadow: inset 4px 4px 0 #ffffff, inset -4px -4px 0 #6e6e8c, 0 0 0 3px #000, 7px 7px 0 3px #ff8fd0; }
   .field { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #ddd; }
   .field input { font: 16px 'Galmuri11', 'Gowun Dodum', monospace; color: #fff; background: #111; border: 3px solid #ff8fd0; border-radius: 0; padding: 12px; outline: none; }
   .field input:focus { border-color: #ffe14d; }
@@ -126,55 +149,70 @@
     <button id="replay" class="ghost" hidden>원숭이부터 다시</button>
   </div>
 
-  <!-- 나만 쓰는 녹음 페이지 (?rec) -->
+  <!-- 만들기 화면 (?rec) -->
   <div class="recbox" id="recbox" hidden>
-    <p class="hint">녹음하는 화면이에요. 받는 사람 화면에는 녹음 버튼이 보이지 않아요.<br>
-      1. <b>이어폰을 꼭 끼고</b> '노래 녹음 시작'을 눌러요. 딱딱딱 소리 다음 한 마디 뒤에 노래가 시작돼요.<br>
-      2. '반주랑 같이 들어 보기'로 확인해요. 박자가 밀리면 타이밍을 조절해요.<br>
-      3. 녹음은 <b>이 폰에만</b> 저장돼요. <b>링크로 보내기</b>를 누르면 받는 사람이 들을 수 있는 링크가 만들어져요.</p>
-    <div class="row">
-      <button id="rSong">노래 녹음 시작</button>
-      <button id="rMsg" class="ghost">메시지 녹음 시작</button>
-    </div>
-    <p class="recst" id="recSt"></p>
-    <div class="row" id="rSongDone" hidden>
-      <button id="rPlay" class="ghost">반주랑 같이 들어 보기</button>
-      <label class="sync">목소리 타이밍 <input type="range" id="rOff" min="-300" max="300" step="10" value="0"><span id="rOffV">0ms</span></label>
-      <a class="btn" id="rSongDl" download="song.wav">song.wav 저장</a>
-    </div>
-    <div class="row" id="rMsgDone" hidden>
-      <audio id="rMsgAudio" controls></audio>
-      <a class="btn" id="rMsgDl" download="message.wav">message.wav 저장</a>
-    </div>
+    <section class="card">
+      <h2><span class="num">1</span>받는 사람</h2>
+      <input id="rName" class="name" maxlength="12" autocomplete="off" placeholder="받는 사람 이름" aria-label="받는 사람 이름">
+      <small>가사 '사랑하는 ○○의'에 들어가요.</small>
+      <button id="rShareNo">녹음 없이 바로 보내기</button>
+      <small class="center">8비트 반주만 담긴 카드가 만들어져요</small>
+    </section>
 
-    <div class="pub">
-      <label class="field">가사에 들어갈 이름
-        <input id="rName" maxlength="12" autocomplete="off" placeholder="받는 사람 이름">
-        <small>'사랑하는 ○○의' 자리에 들어가요. 노래 목소리는 녹음한 그대로라서, 이름을 바꿨다면 노래도 새 이름으로 다시 녹음해 주세요.</small>
-      </label>
-      <button id="rShare">링크로 보내기</button>
-      <button id="rShareNo" class="ghost">녹음 없이 전달하기</button>
+    <div class="or">또는 내 목소리를 담아서</div>
+
+    <section class="card">
+      <h2><span class="num">2</span>목소리 녹음 <em>선택</em></h2>
+      <small><b>이어폰을 끼고</b> 딱딱딱 소리 뒤에 반주에 맞춰 불러요. 녹음은 이 폰에만 저장돼요.</small>
+      <div class="grid2">
+        <button id="rSong">노래 녹음</button>
+        <button id="rMsg" class="ghost">메시지 녹음</button>
+      </div>
+      <p class="recst" id="recSt"></p>
+      <div class="mini" id="rSongDone" hidden>
+        <span class="tag">노래</span>
+        <div class="grid2">
+          <button id="rPlay" class="ghost sm">반주랑 들어 보기</button>
+          <a class="btn ghost sm" id="rSongDl" download="song.wav">파일 저장</a>
+        </div>
+        <label class="sync">타이밍 <input type="range" id="rOff" min="-300" max="300" step="10" value="0"><span id="rOffV">0ms</span></label>
+      </div>
+      <div class="mini" id="rMsgDone" hidden>
+        <span class="tag">메시지</span>
+        <audio id="rMsgAudio" controls></audio>
+        <a class="btn ghost sm" id="rMsgDl" download="message.wav">파일 저장</a>
+      </div>
+      <div class="links">
+        <button id="rLoad" class="link" hidden>이전 녹음 불러오기</button>
+        <button id="rClear" class="link">이 폰의 녹음 지우기</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span class="num">3</span>보내기</h2>
+      <button id="rShare">녹음 담아 링크 만들기</button>
+    </section>
+
+    <section class="card result" id="shareBox">
       <p class="recst" id="shareSt"></p>
       <div class="field" id="shareOut" hidden>받는 사람에게 보낼 링크
         <input id="shareUrl" readonly>
-        <div class="row"><button id="shareSend">메신저로 보내기</button><button id="shareCopy" class="ghost">링크 복사</button></div>
+        <div class="grid2"><button id="shareSend">메신저로 보내기</button><button id="shareCopy" class="ghost">링크 복사</button></div>
       </div>
-      <button id="rLoad" class="ghost" hidden>이 폰에 저장된 이전 녹음 불러오기</button>
-      <button id="rClear" class="ghost">이 폰에 저장된 녹음 지우기</button>
+    </section>
 
-      <details class="pub" id="ownerBox">
-        <summary>관리자: 기본 화면에 반영 (GitHub)</summary>
-        <details id="tokBox" style="margin-top:12px">
-          <summary>GitHub 토큰 (처음 한 번만)</summary>
-          <label class="field" style="margin-top:10px">토큰 붙여넣기
-            <input id="rTok" type="password" autocomplete="off" placeholder="github_pat_...">
-            <small>이 폰 브라우저에만 저장돼요. 다른 사람은 토큰 없이 반영할 수 없어요.</small>
-          </label>
-        </details>
-        <button id="rPub" style="margin-top:12px">화면에 반영</button>
-        <p class="recst" id="pubSt"></p>
+    <details class="owner" id="ownerBox">
+      <summary>관리자: 기본 화면에 반영 (GitHub)</summary>
+      <details id="tokBox" style="margin-top:12px">
+        <summary>GitHub 토큰 (처음 한 번만)</summary>
+        <label class="field" style="margin-top:10px">토큰 붙여넣기
+          <input id="rTok" type="password" autocomplete="off" placeholder="github_pat_...">
+          <small>이 폰 브라우저에만 저장돼요. 다른 사람은 토큰 없이 반영할 수 없어요.</small>
+        </label>
       </details>
-    </div>
+      <button id="rPub" style="margin-top:12px">화면에 반영</button>
+      <p class="recst" id="pubSt"></p>
+    </details>
   </div>
 </main>
 </div>
@@ -984,7 +1022,7 @@ async function restoreLocal() {
 const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return [...a].map(b => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); };
 let sbClient = null;
 async function shareLink(withVoice = true) {
-  const st = t => $('shareSt').textContent = t;
+  const st = t => { $('shareSt').textContent = t; $('shareBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
   if (withVoice && !songBlob && !msgBlob) return st('먼저 노래나 메시지를 녹음해 주세요. 녹음 없이 보내려면 아래 버튼을 눌러 주세요');
   if (!window.supabase) return st('연결 라이브러리를 불러오지 못했어요. 새로고침해 주세요');
   sbClient = sbClient || window.supabase.createClient(SB_URL, SB_KEY);
@@ -1017,7 +1055,7 @@ if (REC) {
     await Promise.all(['song', 'message', 'name', 'lastLink'].map(k => idb.del(k)));
     songBlob = msgBlob = recPreview = null;
     $('rSongDone').hidden = $('rMsgDone').hidden = $('shareOut').hidden = true;
-    $('rSong').textContent = '노래 녹음 시작'; $('rMsg').textContent = '메시지 녹음 시작';
+    $('rSong').textContent = '노래 녹음'; $('rMsg').textContent = '메시지 녹음';
     $('rLoad').hidden = true;
     recSt('이 폰의 녹음을 지웠어요');
   };
@@ -1051,7 +1089,7 @@ if (REC) {
     stopSong();
     try { await capStart(); } catch (e) { return micFail(); }
     $('rMsgDone').hidden = true; $('rSong').disabled = true;
-    $('rMsg').textContent = '메시지 녹음 끝';
+    $('rMsg').textContent = '메시지 녹음 끝내기';
     recSt('● 메시지 녹음 중… 받는 사람에게 하고 싶은 말을 해 주세요');
   };
 }
