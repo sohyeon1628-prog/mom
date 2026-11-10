@@ -75,6 +75,12 @@
   .sync input { flex: 1; min-width: 0; accent-color: #ff8fd0; }
   .sync span { width: 52px; text-align: right; font: 12px 'Galmuri11', monospace; }
   .recbox audio { width: 100%; }
+  .field { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #ddd; }
+  .field input { font: 16px 'Galmuri11', 'Gowun Dodum', monospace; color: #fff; background: #111; border: 3px solid #ff8fd0; border-radius: 0; padding: 12px; outline: none; }
+  .field input:focus { border-color: #ffe14d; }
+  .field small { color: #999; font-size: 12px; line-height: 1.6; }
+  .pub { border-top: 2px dashed #333; padding-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .pub details summary { cursor: pointer; font-size: 14px; color: #ddd; }
   [hidden] { display: none !important; }
   /* 받는 사람 화면(?watch): 녹음 도구는 숨기고 영상만 */
   #watchVid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; image-rendering: pixelated; }
@@ -98,7 +104,7 @@
     <small class="sing">SING ALONG ♪</small>
     <div class="line">생일 축하합니다</div>
     <div class="line">생일 축하합니다</div>
-    <div class="line">사랑하는 영미의</div>
+    <div class="line" id="nameLine">사랑하는 영미의</div>
     <div class="line">생일 축하합니다 ♪</div>
     <span class="note n1">♪</span><span class="note n2">♫</span><span class="note n3">♪</span><span class="note n4">♫</span>
   </div>
@@ -114,7 +120,7 @@
     <p class="hint">나만 쓰는 녹음 페이지예요. 엄마 화면에는 안 보여요.<br>
       1. <b>이어폰을 꼭 끼고</b> '노래 녹음 시작'을 눌러요. 딱딱딱 소리 다음 한 마디 뒤에 노래가 시작돼요.<br>
       2. '반주랑 같이 들어 보기'로 확인해요. 박자가 밀리면 타이밍을 조절해요.<br>
-      3. 저장한 song.wav, message.wav를 프로젝트의 <b>voice</b> 폴더에 넣어요.</p>
+      3. 가사 이름을 확인하고 <b>엄마 화면에 반영</b>을 누르면 새 녹음과 이름이 바로 올라가요.</p>
     <div class="row">
       <button id="rSong">노래 녹음 시작</button>
       <button id="rMsg" class="ghost">메시지 녹음 시작</button>
@@ -128,6 +134,22 @@
     <div class="row" id="rMsgDone" hidden>
       <audio id="rMsgAudio" controls></audio>
       <a class="btn" id="rMsgDl" download="message.wav">message.wav 저장</a>
+    </div>
+
+    <div class="pub">
+      <label class="field">가사에 들어갈 이름
+        <input id="rName" maxlength="12" autocomplete="off" placeholder="예: 영미">
+        <small>'사랑하는 ○○의' 자리에 들어가요. 노래 목소리는 녹음한 그대로라서, 이름을 바꿨다면 노래도 새 이름으로 다시 녹음해 주세요.</small>
+      </label>
+      <details id="tokBox">
+        <summary>GitHub 토큰 (처음 한 번만)</summary>
+        <label class="field" style="margin-top:10px">토큰 붙여넣기
+          <input id="rTok" type="password" autocomplete="off" placeholder="github_pat_...">
+          <small>이 폰 브라우저에만 저장돼요. 다른 사람은 토큰 없이 반영할 수 없어요.</small>
+        </label>
+      </details>
+      <button id="rPub">엄마 화면에 반영</button>
+      <p class="recst" id="pubSt"></p>
     </div>
   </div>
 </main>
@@ -777,6 +799,52 @@ let lyricTimer = setInterval(lyricTick, 2600); lyricTick();
 function setLine(k) { LINES.forEach((l, i) => l.classList.toggle('on', i === k)); }
 function restartLyrics() { clearInterval(lyricTimer); lyricIdx = 0; lyricTick(); lyricTimer = setInterval(lyricTick, 2600); }
 
+/* ================= 가사 이름: config.json ================= */
+let NAME = '영미';
+function applyName(n) {
+  NAME = (n || '').trim() || '영미';
+  const el = document.getElementById('nameLine');
+  el.textContent = `사랑하는 ${NAME}의`; splitChars(el);
+}
+fetch('config.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(c => {
+  if (c && c.name) applyName(c.name);
+  const inp = document.getElementById('rName'); if (inp && !inp.value) inp.value = NAME;
+}).catch(() => {});
+
+/* ================= 관리자: GitHub에 바로 반영 ================= */
+const GH = (() => {
+  const owner = location.hostname.endsWith('.github.io') ? location.hostname.split('.')[0] : 'sohyeon1628-prog';
+  const repo = location.hostname.endsWith('.github.io') ? (location.pathname.split('/')[1] || 'mom') : 'mom';
+  return { owner, repo, api: `https://api.github.com/repos/${owner}/${repo}/contents/` };
+})();
+const b64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+const b64text = t => b64(new Blob([t], { type: 'application/json' }));
+async function ghPut(path, content, msg, tok) {
+  const h = { Authorization: `Bearer ${tok}`, Accept: 'application/vnd.github+json' };
+  let sha;
+  const g = await fetch(GH.api + path + '?ref=main', { headers: h, cache: 'no-store' });
+  if (g.ok) sha = (await g.json()).sha; else if (g.status !== 404) throw new Error(g.status === 401 ? '토큰이 맞지 않아요' : `GitHub 오류 ${g.status}`);
+  const r = await fetch(GH.api + path, { method: 'PUT', headers: h, body: JSON.stringify({ message: msg, content, branch: 'main', ...(sha ? { sha } : {}) }) });
+  if (!r.ok) throw new Error(r.status === 401 || r.status === 403 ? '토큰 권한을 확인해 주세요 (Contents: Read and write)' : `GitHub 오류 ${r.status}`);
+}
+async function publish() {
+  const st = t => document.getElementById('pubSt').textContent = t;
+  let tok = document.getElementById('rTok').value.trim();
+  try { if (tok) localStorage.setItem('gh-token', tok); else tok = localStorage.getItem('gh-token') || ''; } catch (e) {}
+  if (!tok) { document.getElementById('tokBox').open = true; return st('GitHub 토큰을 먼저 붙여 넣어 주세요'); }
+  const name = document.getElementById('rName').value.trim() || NAME;
+  const btn = document.getElementById('rPub'); btn.disabled = true;
+  try {
+    st('이름 반영 중…');
+    await ghPut('config.json', await b64text(JSON.stringify({ name }, null, 2) + '\n'), `Set lyric name: ${name}`, tok);
+    if (songBlob) { st('노래 올리는 중…'); await ghPut('voice/song.wav', await b64(songBlob), 'Update recorded song', tok); }
+    if (msgBlob) { st('메시지 올리는 중…'); await ghPut('voice/message.wav', await b64(msgBlob), 'Update recorded message', tok); }
+    applyName(name);
+    st('반영 완료! 1~2분 뒤 엄마 화면에 나타나요');
+  } catch (e) { st('반영 실패: ' + e.message); }
+  btn.disabled = false;
+}
+
 /* ================= 내 목소리: voice/song.*, voice/message.* ================= */
 const REC = QS.has('rec');
 const VOICE = { song: null, message: null };
@@ -805,7 +873,7 @@ function playVoice(buf, when, dest) {
 }
 
 /* ================= 녹음 페이지 (?rec) ================= */
-let cap = null, songCap = null, songStart = 0, autoLat = 0, recPreview = null;
+let cap = null, songCap = null, songStart = 0, autoLat = 0, recPreview = null, songBlob = null, msgBlob = null;
 const recSt = t => $('recSt').textContent = t;
 async function capStart() {
   audio(); if (ac.state === 'suspended') await ac.resume();
@@ -848,7 +916,8 @@ function buildSong() {
   const data = capSlice(songCap, songStart + lat, songStart + lat + SONG_LEN);
   recPreview = ac.createBuffer(1, data.length, sr); recPreview.getChannelData(0).set(data);
   if ($('rSongDl').href) URL.revokeObjectURL($('rSongDl').href);
-  $('rSongDl').href = URL.createObjectURL(wavBlob(data, sr));
+  songBlob = wavBlob(data, sr);
+  $('rSongDl').href = URL.createObjectURL(songBlob);
 }
 function finishSong() {
   if (!cap) return;
@@ -860,6 +929,9 @@ function finishSong() {
 }
 if (REC) {
   document.body.classList.add('rec'); $('recbox').hidden = false;
+  try { if (localStorage.getItem('gh-token')) $('tokBox').querySelector('summary').textContent = 'GitHub 토큰 (저장됨, 바꾸려면 열기)'; } catch (e) {}
+  $('rName').oninput = () => applyName($('rName').value);
+  $('rPub').onclick = publish;
   $('rSong').onclick = async () => {
     if (cap) return finishSong();
     try { await capStart(); } catch (e) { return micFail(); }
@@ -876,7 +948,8 @@ if (REC) {
       $('rMsg').textContent = '메시지 다시 녹음'; $('rSong').disabled = false;
       if (!c.chunks.length) return recSt('');
       const data = capSlice(c, c.chunks[0][0], c.chunks[c.chunks.length - 1][0] + 4096 / sr);
-      const url = URL.createObjectURL(wavBlob(data, sr));
+      msgBlob = wavBlob(data, sr);
+      const url = URL.createObjectURL(msgBlob);
       $('rMsgAudio').src = url; $('rMsgDl').href = url; $('rMsgDone').hidden = false;
       return recSt('메시지 녹음 완료! 들어 보고 저장해 주세요');
     }
