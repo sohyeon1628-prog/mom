@@ -586,16 +586,25 @@ function sizeIntro() {
   for (let i = 0; i < 2600; i++) { gg.fillStyle = Math.random() < .55 ? `rgba(255,255,255,${Math.random() * .25})` : `rgba(30,40,40,${Math.random() * .18})`; gg.fillRect(Math.random() * 220, Math.random() * 220, 1.6, 1.6); }
   grainPat = lctx.createPattern(gc, 'repeat');
 }
+// 원숭이 귀: 반달 모양 바깥 귀 + 분홍 안쪽 살 + 주름
+function monkeyEar(g, x, y, dir) {
+  g.save(); g.translate(x, y); g.scale(dir, 1);
+  g.fillStyle = '#c7ad9f'; g.beginPath(); g.ellipse(0, 0, 25, 33, .12, 0, 7); g.fill();
+  g.fillStyle = '#f2849f'; g.beginPath(); g.ellipse(5, 2, 15, 22, .12, 0, 7); g.fill();
+  g.strokeStyle = '#c45c75'; g.lineWidth = 3.5; g.lineCap = 'round';
+  g.beginPath(); g.arc(3, 3, 10, -1.1, 1.3); g.stroke();
+  g.fillStyle = 'rgba(0,0,0,.12)'; g.beginPath(); g.ellipse(-8, 0, 7, 26, .12, 0, 7); g.fill();
+  g.restore();
+}
 function drawMonkey(g, t, sq, wob = 0) {
   g.setTransform(S, 0, 0, S, OX, OY);
   const turn = easeIO(clamp((t - .5) / 1.1));
   g.save(); g.translate(0, -sq * 40);
   let gr = g.createRadialGradient(410, 180, 10, 400, 190, 200);
   gr.addColorStop(0, '#c4c0b0'); gr.addColorStop(.6, '#9a9b8e'); gr.addColorStop(1, '#5e6b66');
+  monkeyEar(g, 492, 226, 1); monkeyEar(g, 244, 216, -1);   // 머리 뒤에 그려서 바깥쪽만 보이게
   circ(g, 368, 232, 122, gr);
-  g.fillStyle = '#b8a99a'; g.fillRect(486, 200, 16, 22);
   g.save(); g.beginPath(); g.arc(368, 232, 122, 0, 7); g.clip();
-  g.globalAlpha = turn; circ(g, 290, 200, 13, '#fff'); circ(g, 294, 201, 8, '#2d7393'); g.globalAlpha = 1;
   g.translate(400 + (1 - turn) * 160, 0); g.scale(.25 + .75 * turn, 1); g.translate(-400, 0);
   g.fillStyle = '#ff3f80'; g.fill(PATH.face);
   const blink = turn >= 1 && (t % 3.6) > 3.45 ? .12 : 1;
