@@ -617,6 +617,12 @@ function drawDog(g, t, sq, wob = 0) {
   g.save(); g.translate(0, -sq * 40);
   let gr = g.createRadialGradient(410, 180, 10, 400, 190, 200);
   gr.addColorStop(0, '#e2c39c'); gr.addColorStop(.6, '#bf9466'); gr.addColorStop(1, '#7d5634');
+  // 귀: 얼굴과 같이 머리 둘레를 따라 돌아와요 (머리 뒤쪽으로 간 귀는 머리 뒤에 그려요)
+  const jj = performance.now() / 1000 - jiggleAt, lift = jj < 1.2 ? Math.abs(Math.sin(jj * 14)) * Math.exp(-jj * 4.5) * .9 : 0;
+  const flap = Math.sin(t * 2.4) * .04 - lift * 1.3, up = lift * 10, phi = ek * 1.7;
+  const ears = [[1.17, 1, 152], [-1.08, -1, 148]].map(([th, dir, y]) => ({ x: 368 + 100 * Math.sin(th + phi), z: Math.cos(th + phi), dir, y: y + 4 * ek - up }));
+  const drawEars = front => ears.forEach(e => { if ((e.z >= 0) === front) dogEar(g, e.x, e.y, e.dir, .6 + .4 * turn, flap); });
+  drawEars(false);
   circ(g, 368, 232, 122, gr);
   g.save(); g.beginPath(); g.arc(368, 232, 122, 0, 7); g.clip();
   g.translate(400 + (1 - turn) * 160, 0); g.scale(.25 + .75 * turn, 1); g.translate(-400, 0);
@@ -637,10 +643,8 @@ function drawDog(g, t, sq, wob = 0) {
   g.beginPath(); g.moveTo(408, 252); g.lineTo(408, 268); g.quadraticCurveTo(398, 280, 388, 272); g.moveTo(408, 268); g.quadraticCurveTo(418, 280, 428, 272); g.stroke();
   g.restore();
   // 늘어진 귀 (머리 위에) — 고개 돌리는 동안 같이 펼쳐져요
-  // 엉덩이를 칠 때마다 귀가 바깥 위로 들썩! 했다가 통통 튕기며 내려와요
-  const jj = performance.now() / 1000 - jiggleAt, lift = jj < 1.2 ? Math.abs(Math.sin(jj * 14)) * Math.exp(-jj * 4.5) * .9 : 0;
-  const flap = Math.sin(t * 2.4) * .04 - lift * 1.3, up = lift * 10;
-  dogEar(g, 460 + 4 * ek, 152 + 4 * ek - up, 1, .8 + .2 * turn, flap); dogEar(g, 280 - 4 * ek, 148 + 4 * ek - up, -1, .8 + .2 * turn, flap);
+  // 앞쪽 귀 (엉덩이를 칠 때마다 바깥 위로 들썩)
+  drawEars(true);
   g.restore();
   // 몸 (원숭이와 같은 자세)
   g.save(); g.translate(275, 682); g.rotate(wob); g.scale(1 + sq * .6, 1 - sq); g.translate(-275, -682);
@@ -785,18 +789,20 @@ intro.addEventListener('pointerup', () => {
 let woofCurve = null;
 function woof(n) {
   if (ac.state !== 'running') return;
-  if (!woofCurve) { woofCurve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; woofCurve[i] = Math.tanh(x * 3.2); } }
-  const t = ac.currentTime + .01, up = Math.pow(2, Math.min(n - 1, 4) / 12);
-  const out = ac.createGain(); out.gain.value = .75; out.connect(ac.destination);
-  [[0, .19], [.27, .17]].forEach(([d, len]) => {
+  if (!woofCurve) { woofCurve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; woofCurve[i] = Math.tanh(x * 5.5); } }
+  const t = ac.currentTime + .01, up = Math.pow(2, Math.min(n - 1, 4) / 24);
+  // 고음을 잘라서 날카로운 '끽' 소리 없이 낮고 걸걸하게
+  const out = ac.createGain(), lp = ac.createBiquadFilter(); out.gain.value = .95; lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = .7;
+  out.connect(lp); lp.connect(ac.destination);
+  [[0, .24], [.32, .22]].forEach(([d, len]) => {
     const t0 = t + d, t1 = t0 + len;
     // 성대: 톱니파, 확 올라갔다 내려오는 짖는 음높이
     const o = ac.createOscillator(); o.type = 'sawtooth';
-    o.frequency.setValueAtTime(210 * up, t0); o.frequency.exponentialRampToValueAtTime(390 * up, t0 + len * .22);
-    o.frequency.exponentialRampToValueAtTime(230 * up, t0 + len * .7); o.frequency.exponentialRampToValueAtTime(170 * up, t1);
+    o.frequency.setValueAtTime(105 * up, t0); o.frequency.exponentialRampToValueAtTime(185 * up, t0 + len * .22);
+    o.frequency.exponentialRampToValueAtTime(120 * up, t0 + len * .7); o.frequency.exponentialRampToValueAtTime(90 * up, t1);
     // 목 떨림(그르렁) + 찢어지는 거친 질감
     const rough = ac.createGain(), am = ac.createOscillator(), amg = ac.createGain();
-    rough.gain.value = .7; am.frequency.value = 52; amg.gain.value = .35; am.connect(amg); amg.connect(rough.gain);
+    rough.gain.value = .65; am.frequency.value = 34; amg.gain.value = .55; am.connect(amg); amg.connect(rough.gain);
     const sh = ac.createWaveShaper(); sh.curve = woofCurve;
     // 소리 크기: 'w'로 빠르게 열리고, 'ㄹ'에서 살짝 눌렸다가 끝
     const env = ac.createGain();
@@ -805,14 +811,14 @@ function woof(n) {
     env.gain.exponentialRampToValueAtTime(.0001, t1);
     o.connect(rough); rough.connect(sh); sh.connect(env);
     // 입 모양 울림: 우(w) → 워(ㅝ) → ㄹ
-    [[[320, 680, 420], 5, 1], [[760, 1150, 780], 6, .6], [[2400, 2500, 2300], 4, .18]].forEach(([fs, q, v]) => {
+    [[[260, 520, 340], 4, 1.2], [[600, 880, 580], 5, .55]].forEach(([fs, q, v]) => {
       const bp = ac.createBiquadFilter(), fg = ac.createGain();
       bp.type = 'bandpass'; bp.Q.value = q;
       bp.frequency.setValueAtTime(fs[0], t0); bp.frequency.linearRampToValueAtTime(fs[1], t0 + len * .3); bp.frequency.linearRampToValueAtTime(fs[2], t1);
       fg.gain.value = v; env.connect(bp); bp.connect(fg); fg.connect(out);
     });
     o.start(t0); o.stop(t1 + .03); am.start(t0); am.stop(t1 + .03);
-    noise(out, t0, .045, .22, 'bandpass', 1300);   // 짖을 때 '훅' 하는 숨소리
+    noise(out, t0, .06, .25, 'bandpass', 650);    // 짖을 때 '훅' 하는 낮은 숨소리
   });
 }
 // 우끼끼! — 칠수록 점점 높고 신나게
