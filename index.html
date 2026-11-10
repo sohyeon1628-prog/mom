@@ -727,6 +727,7 @@ function introFrame(now) {
   const s = now / 1000, t = s - introT0, j = s - jiggleAt;
   const dec = j < .55 ? 1 - j / .55 : 0, sq = Math.sin(j * 30) * jAmp * dec, wob = Math.sin(j * 24 + 1) * jAmp * .6 * dec;
   ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#000'; ictx.fillRect(0, 0, IW, IH);
+  if (!metaReady) { tapEl.hidden = true; return; }
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); (CHAR === 'dog' ? drawDog : drawMonkey)(lctx, t, sq, wob);
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
   ictx.drawImage(layer, 0, 0);
@@ -1077,10 +1078,14 @@ const SB_KEY = 'sb_publishable_l0lwhskwY-NTmN1avax0Aw_3Q3MuLAZ';
 const SB_PUB = `${SB_URL}/storage/v1/object/public/voices`;
 let CHAR = QS.get('char') === 'dog' ? 'dog' : 'monkey';
 const ID = (() => { const v = QS.get('id') || ''; return /^[a-z0-9]{6,24}$/.test(v) ? v : null; })();
+// 받는 사람 링크는 캐릭터 정보를 다 불러온 뒤에 그리기 시작해요 (원숭이가 잠깐 보였다 바뀌는 것 방지)
+let metaReady = !ID;
+const metaDone = () => { if (metaReady) return; metaReady = true; introT0 = performance.now() / 1000; };
+if (ID) setTimeout(metaDone, 3000);
 if (ID || QS.has('mom')) fetch(ID ? `${SB_PUB}/${ID}/meta.json` : 'config.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(c => {
   if (c && c.name) applyName(c.name);
   if (c && (c.char === 'dog' || c.char === 'monkey') && !QS.get('char')) CHAR = c.char;
-}).catch(() => {});
+}).catch(() => {}).finally(metaDone);
 
 /* ================= 관리자: GitHub에 바로 반영 ================= */
 const GH = (() => {
