@@ -120,7 +120,7 @@
     <p class="hint">나만 쓰는 녹음 페이지예요. 엄마 화면에는 안 보여요.<br>
       1. <b>이어폰을 꼭 끼고</b> '노래 녹음 시작'을 눌러요. 딱딱딱 소리 다음 한 마디 뒤에 노래가 시작돼요.<br>
       2. '반주랑 같이 들어 보기'로 확인해요. 박자가 밀리면 타이밍을 조절해요.<br>
-      3. 가사 이름을 확인하고 <b>엄마 화면에 반영</b>을 누르면 새 녹음과 이름이 바로 올라가요.</p>
+      3. 가사 이름을 확인하고 <b>화면에 반영</b>을 누르면 새 녹음과 이름이 바로 올라가요.</p>
     <div class="row">
       <button id="rSong">노래 녹음 시작</button>
       <button id="rMsg" class="ghost">메시지 녹음 시작</button>
@@ -148,7 +148,7 @@
           <small>이 폰 브라우저에만 저장돼요. 다른 사람은 토큰 없이 반영할 수 없어요.</small>
         </label>
       </details>
-      <button id="rPub">엄마 화면에 반영</button>
+      <button id="rPub">화면에 반영</button>
       <p class="recst" id="pubSt"></p>
     </div>
   </div>
@@ -840,7 +840,7 @@ async function publish() {
     if (songBlob) { st('노래 올리는 중…'); await ghPut('voice/song.wav', await b64(songBlob), 'Update recorded song', tok); }
     if (msgBlob) { st('메시지 올리는 중…'); await ghPut('voice/message.wav', await b64(msgBlob), 'Update recorded message', tok); }
     applyName(name);
-    st('반영 완료! 1~2분 뒤 엄마 화면에 나타나요');
+    st('반영 완료! 1~2분 뒤 화면에 나타나요');
   } catch (e) { st('반영 실패: ' + e.message); }
   btn.disabled = false;
 }
