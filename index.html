@@ -85,6 +85,11 @@
   /* 받는 사람 화면(?watch): 녹음 도구는 숨기고 영상만 */
   #watchVid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; image-rendering: pixelated; }
   body.watch main > :not(.stage):not(#watchEnd) { display: none !important; }
+  /* 첫 화면(링크 없이 들어왔을 때): 생성하기 */
+  body.land main > :not(.stage):not(#landBox) { display: none !important; }
+  #landBox { width: 100%; display: flex; flex-direction: column; gap: 22px; text-align: center; }
+  #landBox h1 { margin: 0; font: 22px 'Galmuri11', monospace; color: #ff8fd0; text-shadow: 3px 3px 0 #1414e6; line-height: 1.5; }
+  #landBox p { margin: 0; font-size: 15px; color: #ccc; line-height: 1.8; }
   #watchEnd { width: 100%; }
 </style>
 </head>
@@ -99,6 +104,12 @@
   </div>
 
   <div class="row" id="watchEnd" hidden><button id="watchAgain">다시 보기</button></div>
+
+  <div id="landBox" hidden>
+    <h1>생일 축하 노래 카드</h1>
+    <p>케이크와 함께 생일 축하 노래와 메시지를 녹음하고<br>링크로 보내 보세요.</p>
+    <button id="landGo">생성하기</button>
+  </div>
 
   <div class="lyrics" id="lyrics">
     <small class="sing">SING ALONG ♪</small>
@@ -302,7 +313,7 @@ function blowOut() {
   if (phase !== 'blow') return;
   closeMic(); setPhase('out'); spawnSmoke(); sfxBlow();
   // 팡파르 끝나갈 때 내 목소리 메시지 (아직 못 불러왔으면 기다렸다가)
-  if (!ac || REC || WATCH) return;
+  if (!ac || REC || WATCH || LAND) return;
   clearTimeout(msgT);
   msgT = setTimeout(async () => {
     await decodeVoices();
@@ -318,7 +329,7 @@ function stopMessage() { clearTimeout(msgT); if (msgSrc) { msgSrc.onended = null
 let mic = null, micLevel = 0, blowAcc = 0;
 const setSession = t => { try { if (navigator.audioSession) navigator.audioSession.type = t; } catch (e) {} };
 async function openMic() {
-  if (mic || REC || WATCH || !ac || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
+  if (mic || REC || WATCH || LAND || !ac || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
   try {
     setSession('play-and-record');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
@@ -864,6 +875,8 @@ async function publish() {
 
 /* ================= 내 목소리: voice/song.*, voice/message.* ================= */
 const REC = QS.has('rec');
+const MOM = QS.has('mom');                       // 영미 님 전용 화면 (GitHub voice/)
+const LAND = !REC && !MOM && !ID && !WATCH;       // 링크 없이 들어오면 생성하기 화면
 const VOICE = { song: null, message: null };
 async function loadVoice(name) {
   if (ID) { try { const r = await fetch(`${SB_PUB}/${ID}/${name}.wav`); if (r.ok) return await r.arrayBuffer(); } catch (e) {} return null; }
@@ -872,7 +885,7 @@ async function loadVoice(name) {
   }
   return null;
 }
-const voiceRaw = REC || WATCH ? {} : { song: loadVoice('song'), message: loadVoice('message') };
+const voiceRaw = REC || WATCH || LAND ? {} : { song: loadVoice('song'), message: loadVoice('message') };
 let decoding;
 function decodeVoices() {
   return decoding = decoding || (async () => {
@@ -1031,7 +1044,11 @@ if (REC) {
 }
 
 updateButtons();
-if (REC) endIntro(); else showIntro();
+if (LAND) {
+  document.body.classList.add('land'); $('landBox').hidden = false;
+  $('landGo').onclick = () => { location.href = location.pathname + '?rec'; };
+}
+if (REC || LAND) endIntro(); else showIntro();
 document.fonts.load('bold 19px "Gowun Dodum"', '소원을 빌어요 케이크를 눌러 후~ 꺼 주세요').catch(() => {});
 document.fonts.load('10px "Press Start 2P"', 'MAKE A WISH HAPPY BIRTHDAY!').catch(() => {});
 </script>
