@@ -162,11 +162,7 @@
         <button id="pkMonkey" class="pk">원숭이</button>
         <button id="pkDog" class="pk ghost">강아지</button>
       </div>
-      <button id="rShareNo">녹음 없이 바로 보내기</button>
-      <small class="center">8비트 반주만 담긴 카드가 만들어져요</small>
     </section>
-
-    <div class="or">또는 내 목소리를 담아서</div>
 
     <section class="card">
       <h2><span class="num">2</span>목소리 녹음 <em>선택</em></h2>
@@ -197,7 +193,9 @@
 
     <section class="card">
       <h2><span class="num">3</span>보내기</h2>
-      <button id="rShare">녹음 담아 링크 만들기</button>
+      <button id="rShare">녹음 담아 보내기</button>
+      <button id="rShareNo" class="ghost">녹음 없이 보내기</button>
+      <small class="center">녹음 없이 보내면 8비트 반주만 담긴 카드가 만들어져요</small>
     </section>
 
     <section class="card result" id="shareBox">
@@ -631,9 +629,12 @@ function drawDog(g, t, sq, wob = 0) {
   g.restore();
   g.fillStyle = '#1d1512'; g.beginPath(); g.ellipse(408, 240, 18, 12, 0, 0, 7); g.fill();
   g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); g.ellipse(402, 236, 5, 3, 0, 0, 7); g.fill();
+  // 혀: 입 선에서 바로 내려오는 U자 (입 선을 위에 그려서 입에서 나온 것처럼)
+  const tl = 16 + Math.sin(t * 6) * 1.5;
+  g.fillStyle = '#ff5c8f'; g.beginPath(); g.moveTo(397, 270); g.lineTo(397, 270 + tl); g.arc(408.5, 270 + tl, 11.5, Math.PI, 0, true); g.lineTo(420, 270); g.closePath(); g.fill();
+  g.strokeStyle = '#d43d6c'; g.lineWidth = 2; g.beginPath(); g.moveTo(408.5, 274); g.lineTo(408.5, 266 + tl); g.stroke();
   g.strokeStyle = '#1d1512'; g.lineWidth = 3.5; g.lineCap = 'round';
   g.beginPath(); g.moveTo(408, 252); g.lineTo(408, 268); g.quadraticCurveTo(398, 280, 388, 272); g.moveTo(408, 268); g.quadraticCurveTo(418, 280, 428, 272); g.stroke();
-  g.fillStyle = '#ff3f80'; g.beginPath(); g.ellipse(410, 286, 9, 13 + Math.sin(t * 6) * 1.5, 0, 0, 7); g.fill();
   g.restore();
   // 늘어진 귀 (머리 위에) — 고개 돌리는 동안 같이 펼쳐져요
   // 엉덩이를 칠 때마다 귀가 바깥 위로 들썩! 했다가 통통 튕기며 내려와요
@@ -1218,7 +1219,7 @@ const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); ret
 let sbClient = null;
 async function shareLink(withVoice = true) {
   const st = t => { $('shareSt').textContent = t; $('shareBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
-  if (withVoice && !songBlob && !msgBlob) return st('먼저 노래나 메시지를 녹음해 주세요. 녹음 없이 보내려면 아래 버튼을 눌러 주세요');
+  if (withVoice && !songBlob && !msgBlob) return st('먼저 노래나 메시지를 녹음해 주세요. 녹음 없이 보내려면 [녹음 없이 보내기]를 눌러 주세요');
   if (!window.supabase) return st('연결 라이브러리를 불러오지 못했어요. 새로고침해 주세요');
   sbClient = sbClient || window.supabase.createClient(SB_URL, SB_KEY);
   const id = rid(), b = sbClient.storage.from('voices'), name = $('rName').value.trim();
