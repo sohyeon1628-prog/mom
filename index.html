@@ -120,7 +120,7 @@
     <p class="hint">나만 쓰는 녹음 페이지예요. 엄마 화면에는 안 보여요.<br>
       1. <b>이어폰을 꼭 끼고</b> '노래 녹음 시작'을 눌러요. 딱딱딱 소리 다음 한 마디 뒤에 노래가 시작돼요.<br>
       2. '반주랑 같이 들어 보기'로 확인해요. 박자가 밀리면 타이밍을 조절해요.<br>
-      3. 가사 이름을 확인하고 <b>화면에 반영</b>을 누르면 새 녹음과 이름이 바로 올라가요.</p>
+      3. 녹음은 <b>이 폰에만</b> 저장돼요. <b>링크로 보내기</b>를 누르면 받는 사람이 들을 수 있는 링크가 만들어져요.</p>
     <div class="row">
       <button id="rSong">노래 녹음 시작</button>
       <button id="rMsg" class="ghost">메시지 녹음 시작</button>
@@ -141,15 +141,26 @@
         <input id="rName" maxlength="12" autocomplete="off" placeholder="예: 영미">
         <small>'사랑하는 ○○의' 자리에 들어가요. 노래 목소리는 녹음한 그대로라서, 이름을 바꿨다면 노래도 새 이름으로 다시 녹음해 주세요.</small>
       </label>
-      <details id="tokBox">
-        <summary>GitHub 토큰 (처음 한 번만)</summary>
-        <label class="field" style="margin-top:10px">토큰 붙여넣기
-          <input id="rTok" type="password" autocomplete="off" placeholder="github_pat_...">
-          <small>이 폰 브라우저에만 저장돼요. 다른 사람은 토큰 없이 반영할 수 없어요.</small>
-        </label>
+      <button id="rShare">링크로 보내기</button>
+      <p class="recst" id="shareSt"></p>
+      <div class="field" id="shareOut" hidden>받는 사람에게 보낼 링크
+        <input id="shareUrl" readonly>
+        <div class="row"><button id="shareSend">메신저로 보내기</button><button id="shareCopy" class="ghost">링크 복사</button></div>
+      </div>
+      <button id="rClear" class="ghost">이 폰에 저장된 녹음 지우기</button>
+
+      <details class="pub" id="ownerBox">
+        <summary>관리자: 기본 화면에 반영 (GitHub)</summary>
+        <details id="tokBox" style="margin-top:12px">
+          <summary>GitHub 토큰 (처음 한 번만)</summary>
+          <label class="field" style="margin-top:10px">토큰 붙여넣기
+            <input id="rTok" type="password" autocomplete="off" placeholder="github_pat_...">
+            <small>이 폰 브라우저에만 저장돼요. 다른 사람은 토큰 없이 반영할 수 없어요.</small>
+          </label>
+        </details>
+        <button id="rPub" style="margin-top:12px">화면에 반영</button>
+        <p class="recst" id="pubSt"></p>
       </details>
-      <button id="rPub">화면에 반영</button>
-      <p class="recst" id="pubSt"></p>
     </div>
   </div>
 </main>
@@ -157,6 +168,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 /* ================= 레트로 3D 케이크 ================= */
 const LW = 300, OUT = 720, FPS = 15;
@@ -806,7 +818,12 @@ function applyName(n) {
   const el = document.getElementById('nameLine');
   el.textContent = `사랑하는 ${NAME}의`; splitChars(el);
 }
-fetch('config.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(c => {
+/* ================= Supabase: 링크로 보내기 / 받기 ================= */
+const SB_URL = 'https://dvppwsqbssgrcuxconzz.supabase.co';
+const SB_KEY = 'sb_publishable_l0lwhskwY-NTmN1avax0Aw_3Q3MuLAZ';
+const SB_PUB = `${SB_URL}/storage/v1/object/public/voices`;
+const ID = (() => { const v = QS.get('id') || ''; return /^[a-z0-9]{6,24}$/.test(v) ? v : null; })();
+fetch(ID ? `${SB_PUB}/${ID}/meta.json` : 'config.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(c => {
   if (c && c.name) applyName(c.name);
   const inp = document.getElementById('rName'); if (inp && !inp.value) inp.value = NAME;
 }).catch(() => {});
@@ -849,6 +866,7 @@ async function publish() {
 const REC = QS.has('rec');
 const VOICE = { song: null, message: null };
 async function loadVoice(name) {
+  if (ID) { try { const r = await fetch(`${SB_PUB}/${ID}/${name}.wav`); if (r.ok) return await r.arrayBuffer(); } catch (e) {} return null; }
   for (const ext of ['wav', 'm4a', 'mp3', 'mp4', 'webm']) {
     try { const r = await fetch(`voice/${name}.${ext}`, { cache: 'no-cache' }); if (r.ok) return await r.arrayBuffer(); } catch (e) {}
   }
@@ -916,7 +934,7 @@ function buildSong() {
   const data = capSlice(songCap, songStart + lat, songStart + lat + SONG_LEN);
   recPreview = ac.createBuffer(1, data.length, sr); recPreview.getChannelData(0).set(data);
   if ($('rSongDl').href) URL.revokeObjectURL($('rSongDl').href);
-  songBlob = wavBlob(data, sr);
+  songBlob = wavBlob(data, sr); idb.set('song', songBlob);
   $('rSongDl').href = URL.createObjectURL(songBlob);
 }
 function finishSong() {
@@ -927,10 +945,58 @@ function finishSong() {
   $('rSong').textContent = '노래 다시 녹음'; $('rMsg').disabled = false; $('rSongDone').hidden = false;
   recSt('녹음 완료! 들어 보고 저장해 주세요');
 }
+/* 이 폰에만 저장 (IndexedDB) */
+const idb = (() => {
+  let dbp;
+  const open = () => dbp = dbp || new Promise((res, rej) => { const r = indexedDB.open('mom-voice', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const run = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', mode), q = fn(t.objectStore('kv')); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
+  return { get: k => run('readonly', st => st.get(k)).catch(() => undefined), set: (k, v) => run('readwrite', st => st.put(v, k)).catch(() => {}), del: k => run('readwrite', st => st.delete(k)).catch(() => {}) };
+})();
+async function restoreLocal() {
+  const [sg, mg, nm] = await Promise.all([idb.get('song'), idb.get('message'), idb.get('name')]);
+  if (nm) { $('rName').value = nm; applyName(nm); }
+  if (sg) { songBlob = sg; $('rSongDl').href = URL.createObjectURL(sg); $('rSongDone').hidden = false; $('rSong').textContent = '노래 다시 녹음'; }
+  if (mg) { msgBlob = mg; const u = URL.createObjectURL(mg); $('rMsgAudio').src = u; $('rMsgDl').href = u; $('rMsgDone').hidden = false; $('rMsg').textContent = '메시지 다시 녹음'; }
+  if (sg || mg) recSt('이 폰에 저장해 둔 녹음을 불러왔어요');
+}
+const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return [...a].map(b => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); };
+let sbClient = null;
+async function shareLink() {
+  const st = t => $('shareSt').textContent = t;
+  if (!songBlob && !msgBlob) return st('먼저 노래나 메시지를 녹음해 주세요');
+  if (!window.supabase) return st('연결 라이브러리를 불러오지 못했어요. 새로고침해 주세요');
+  sbClient = sbClient || window.supabase.createClient(SB_URL, SB_KEY);
+  const id = rid(), b = sbClient.storage.from('voices'), name = $('rName').value.trim() || NAME;
+  $('rShare').disabled = true;
+  try {
+    st('링크 만드는 중…');
+    const up = async (path, body, type) => { const { error } = await b.upload(`${id}/${path}`, body, { contentType: type, upsert: false }); if (error) throw error; };
+    if (songBlob) await up('song.wav', songBlob, 'audio/wav');
+    if (msgBlob) await up('message.wav', msgBlob, 'audio/wav');
+    await up('meta.json', new Blob([JSON.stringify({ name })], { type: 'application/json' }), 'application/json');
+    const url = `${location.origin}${location.pathname}?id=${id}`;
+    $('shareUrl').value = url; $('shareOut').hidden = false;
+    idb.set('lastLink', url);
+    st('링크가 만들어졌어요!');
+  } catch (e) { st('링크 만들기 실패: ' + (e.message || e)); }
+  $('rShare').disabled = false;
+}
 if (REC) {
   document.body.classList.add('rec'); $('recbox').hidden = false;
+  restoreLocal();
+  $('rShare').onclick = shareLink;
+  $('shareCopy').onclick = async () => { try { await navigator.clipboard.writeText($('shareUrl').value); $('shareSt').textContent = '복사했어요!'; } catch (e) { $('shareUrl').select(); } };
+  $('shareSend').onclick = () => { const url = $('shareUrl').value; if (navigator.share) navigator.share({ title: '생일 축하해요', url }).catch(() => {}); else $('shareCopy').click(); };
+  $('rClear').onclick = async () => {
+    if (!confirm('이 폰에 저장된 노래와 메시지를 지울까요? 이미 보낸 링크는 그대로 들려요.')) return;
+    await Promise.all(['song', 'message', 'name', 'lastLink'].map(k => idb.del(k)));
+    songBlob = msgBlob = recPreview = null;
+    $('rSongDone').hidden = $('rMsgDone').hidden = $('shareOut').hidden = true;
+    $('rSong').textContent = '노래 녹음 시작'; $('rMsg').textContent = '메시지 녹음 시작';
+    recSt('이 폰의 녹음을 지웠어요');
+  };
   try { if (localStorage.getItem('gh-token')) $('tokBox').querySelector('summary').textContent = 'GitHub 토큰 (저장됨, 바꾸려면 열기)'; } catch (e) {}
-  $('rName').oninput = () => applyName($('rName').value);
+  $('rName').oninput = () => { applyName($('rName').value); idb.set('name', $('rName').value.trim()); };
   $('rPub').onclick = publish;
   $('rSong').onclick = async () => {
     if (cap) return finishSong();
@@ -941,14 +1007,17 @@ if (REC) {
     songStart = playSong(finishSong);
   };
   $('rOff').oninput = () => songCap && buildSong();
-  $('rPlay').onclick = () => { if (recPreview) playSong(() => {}); };
+  $('rPlay').onclick = async () => {
+    if (!recPreview && songBlob) { audio(); if (ac.state === 'suspended') await ac.resume(); try { recPreview = await ac.decodeAudioData(await songBlob.arrayBuffer()); } catch (e) {} }
+    if (recPreview) playSong(() => {});
+  };
   $('rMsg').onclick = async () => {
     if (cap) {
       const c = capStop(), sr = ac.sampleRate;
       $('rMsg').textContent = '메시지 다시 녹음'; $('rSong').disabled = false;
       if (!c.chunks.length) return recSt('');
       const data = capSlice(c, c.chunks[0][0], c.chunks[c.chunks.length - 1][0] + 4096 / sr);
-      msgBlob = wavBlob(data, sr);
+      msgBlob = wavBlob(data, sr); idb.set('message', msgBlob);
       const url = URL.createObjectURL(msgBlob);
       $('rMsgAudio').src = url; $('rMsgDl').href = url; $('rMsgDone').hidden = false;
       return recSt('메시지 녹음 완료! 들어 보고 저장해 주세요');
