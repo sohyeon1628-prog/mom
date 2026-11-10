@@ -780,6 +780,41 @@ intro.addEventListener('pointerup', () => {
   if (tapHit) { tapHit = false; CHAR === 'dog' ? woof(taps) : ukiki(taps); }
 });
 // 우끼끼! — 칠수록 점점 높고 신나게
+// 월! 월! — 거친 목소리(떨림+찢어짐) + 'ㅝ→ㄹ' 입 모양 울림으로 강아지처럼 (칠수록 조금씩 높아져요)
+let woofCurve = null;
+function woof(n) {
+  if (ac.state !== 'running') return;
+  if (!woofCurve) { woofCurve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; woofCurve[i] = Math.tanh(x * 3.2); } }
+  const t = ac.currentTime + .01, up = Math.pow(2, Math.min(n - 1, 4) / 12);
+  const out = ac.createGain(); out.gain.value = .75; out.connect(ac.destination);
+  [[0, .19], [.27, .17]].forEach(([d, len]) => {
+    const t0 = t + d, t1 = t0 + len;
+    // 성대: 톱니파, 확 올라갔다 내려오는 짖는 음높이
+    const o = ac.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(210 * up, t0); o.frequency.exponentialRampToValueAtTime(390 * up, t0 + len * .22);
+    o.frequency.exponentialRampToValueAtTime(230 * up, t0 + len * .7); o.frequency.exponentialRampToValueAtTime(170 * up, t1);
+    // 목 떨림(그르렁) + 찢어지는 거친 질감
+    const rough = ac.createGain(), am = ac.createOscillator(), amg = ac.createGain();
+    rough.gain.value = .7; am.frequency.value = 52; amg.gain.value = .35; am.connect(amg); amg.connect(rough.gain);
+    const sh = ac.createWaveShaper(); sh.curve = woofCurve;
+    // 소리 크기: 'w'로 빠르게 열리고, 'ㄹ'에서 살짝 눌렸다가 끝
+    const env = ac.createGain();
+    env.gain.setValueAtTime(.0001, t0); env.gain.exponentialRampToValueAtTime(1, t0 + .025);
+    env.gain.setValueAtTime(1, t0 + len * .6); env.gain.exponentialRampToValueAtTime(.45, t0 + len * .75);
+    env.gain.exponentialRampToValueAtTime(.0001, t1);
+    o.connect(rough); rough.connect(sh); sh.connect(env);
+    // 입 모양 울림: 우(w) → 워(ㅝ) → ㄹ
+    [[[320, 680, 420], 5, 1], [[760, 1150, 780], 6, .6], [[2400, 2500, 2300], 4, .18]].forEach(([fs, q, v]) => {
+      const bp = ac.createBiquadFilter(), fg = ac.createGain();
+      bp.type = 'bandpass'; bp.Q.value = q;
+      bp.frequency.setValueAtTime(fs[0], t0); bp.frequency.linearRampToValueAtTime(fs[1], t0 + len * .3); bp.frequency.linearRampToValueAtTime(fs[2], t1);
+      fg.gain.value = v; env.connect(bp); bp.connect(fg); fg.connect(out);
+    });
+    o.start(t0); o.stop(t1 + .03); am.start(t0); am.stop(t1 + .03);
+    noise(out, t0, .045, .22, 'bandpass', 1300);   // 짖을 때 '훅' 하는 숨소리
+  });
+}
+// 우끼끼! — 칠수록 점점 높고 신나게
 // 월! 월! — 낮은 목소리에 '워' 모음 울림을 넣어 강아지처럼 (칠수록 조금씩 높아져요)
 function woof(n) {
   if (ac.state !== 'running') return;
