@@ -587,8 +587,8 @@ function sizeIntro() {
   grainPat = lctx.createPattern(gc, 'repeat');
 }
 // 원숭이 귀: 반달 모양 바깥 귀 + 분홍 안쪽 살 + 주름
-function monkeyEar(g, x, y, dir) {
-  g.save(); g.translate(x, y); g.scale(dir, 1);
+function monkeyEar(g, x, y, dir, sx = 1) {
+  g.save(); g.translate(x, y); g.scale(dir * sx, 1);
   g.fillStyle = '#c7ad9f'; g.beginPath(); g.ellipse(0, 0, 25, 33, .12, 0, 7); g.fill();
   g.fillStyle = '#f2849f'; g.beginPath(); g.ellipse(5, 2, 15, 22, .12, 0, 7); g.fill();
   g.strokeStyle = '#c45c75'; g.lineWidth = 3.5; g.lineCap = 'round';
@@ -602,7 +602,9 @@ function drawMonkey(g, t, sq, wob = 0) {
   g.save(); g.translate(0, -sq * 40);
   let gr = g.createRadialGradient(410, 180, 10, 400, 190, 200);
   gr.addColorStop(0, '#c4c0b0'); gr.addColorStop(.6, '#9a9b8e'); gr.addColorStop(1, '#5e6b66');
-  monkeyEar(g, 492, 226, 1); monkeyEar(g, 244, 216, -1);   // 머리 뒤에 그려서 바깥쪽만 보이게
+  // 귀: 고개를 돌리는 동안 머리 뒤에서 양옆으로 펼쳐져 나와요 (머리 뒤에 그려서 바깥쪽만 보이게)
+  const ek = 1 - turn;
+  monkeyEar(g, 492 - 40 * ek, 226 + 6 * ek, 1, .55 + .45 * turn); monkeyEar(g, 244 + 40 * ek, 216 + 6 * ek, -1, .55 + .45 * turn);
   circ(g, 368, 232, 122, gr);
   g.save(); g.beginPath(); g.arc(368, 232, 122, 0, 7); g.clip();
   g.translate(400 + (1 - turn) * 160, 0); g.scale(.25 + .75 * turn, 1); g.translate(-400, 0);
