@@ -148,7 +148,7 @@
   <div class="row" id="ctrl">
     <button id="blow" hidden>후~ 촛불 끄기</button>
     <button id="sing" hidden>생일 노래 듣기</button>
-    <button id="replay" class="ghost" hidden>원숭이부터 다시</button>
+    <button id="replay" class="ghost" hidden>처음부터 다시 보기</button>
   </div>
 
   <!-- 만들기 화면 (?rec) -->
@@ -774,6 +774,32 @@ intro.addEventListener('pointerup', () => {
   unlockAudio();
   if (tapHit) { tapHit = false; CHAR === 'dog' ? woof(taps) : ukiki(taps); }
 });
+// 우끼끼! — 칠수록 점점 높고 신나게
+// 월! 월! — 낮은 목소리에 '워' 모음 울림을 넣어 강아지처럼 (칠수록 조금씩 높아져요)
+function woof(n) {
+  if (ac.state !== 'running') return;
+  const t = ac.currentTime + .01, up = Math.pow(2, Math.min(n - 1, 4) / 12);
+  const out = ac.createGain(); out.gain.value = .9; out.connect(ac.destination);
+  [[0, .22], [.3, .2]].forEach(([d, len]) => {
+    const t0 = t + d, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sawtooth';
+    // 워-ㄹ : 낮게 시작 → 살짝 올라갔다 → 내려가며 끝
+    o.frequency.setValueAtTime(150 * up, t0); o.frequency.exponentialRampToValueAtTime(240 * up, t0 + len * .3);
+    o.frequency.exponentialRampToValueAtTime(130 * up, t0 + len);
+    g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(1, t0 + .045);   // 'ㅇ/w' 부드럽게 시작
+    g.gain.setValueAtTime(1, t0 + len * .55); g.gain.exponentialRampToValueAtTime(.0001, t0 + len);
+    o.connect(g);
+    // '워' 모음 소리: 두 개의 울림(포먼트), 끝에서 'ㄹ'처럼 살짝 낮아져요
+    [[480, 6, .9], [850, 7, .5]].forEach(([f, q, v]) => {
+      const bp = ac.createBiquadFilter(), fg = ac.createGain();
+      bp.type = 'bandpass'; bp.Q.value = q;
+      bp.frequency.setValueAtTime(f * .8, t0); bp.frequency.linearRampToValueAtTime(f, t0 + len * .35); bp.frequency.linearRampToValueAtTime(f * .75, t0 + len);
+      fg.gain.value = v; g.connect(bp); bp.connect(fg); fg.connect(out);
+    });
+    o.start(t0); o.stop(t0 + len + .03);
+    noise(out, t0, .05, .12, 'bandpass', 700);
+  });
+}
 // 우끼끼! — 칠수록 점점 높고 신나게
 // 멍! 멍! — 칠수록 점점 높고 신나게
 function woof(n) {
