@@ -153,6 +153,7 @@
         <small>'사랑하는 ○○의' 자리에 들어가요. 노래 목소리는 녹음한 그대로라서, 이름을 바꿨다면 노래도 새 이름으로 다시 녹음해 주세요.</small>
       </label>
       <button id="rShare">링크로 보내기</button>
+      <button id="rShareNo" class="ghost">녹음 없이 전달하기</button>
       <p class="recst" id="shareSt"></p>
       <div class="field" id="shareOut" hidden>받는 사람에게 보낼 링크
         <input id="shareUrl" readonly>
@@ -982,32 +983,33 @@ async function restoreLocal() {
 }
 const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return [...a].map(b => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); };
 let sbClient = null;
-async function shareLink() {
+async function shareLink(withVoice = true) {
   const st = t => $('shareSt').textContent = t;
-  if (!songBlob && !msgBlob) return st('먼저 노래나 메시지를 녹음해 주세요');
+  if (withVoice && !songBlob && !msgBlob) return st('먼저 노래나 메시지를 녹음해 주세요. 녹음 없이 보내려면 아래 버튼을 눌러 주세요');
   if (!window.supabase) return st('연결 라이브러리를 불러오지 못했어요. 새로고침해 주세요');
   sbClient = sbClient || window.supabase.createClient(SB_URL, SB_KEY);
   const id = rid(), b = sbClient.storage.from('voices'), name = $('rName').value.trim();
   if (!name) { $('rName').focus(); return st('받는 사람 이름을 먼저 써 주세요'); }
-  $('rShare').disabled = true;
+  $('rShare').disabled = $('rShareNo').disabled = true;
   try {
     st('링크 만드는 중…');
     const up = async (path, body, type) => { const { error } = await b.upload(`${id}/${path}`, body, { contentType: type, upsert: false }); if (error) throw error; };
-    if (songBlob) await up('song.wav', songBlob, 'audio/wav');
-    if (msgBlob) await up('message.wav', msgBlob, 'audio/wav');
+    if (withVoice && songBlob) await up('song.wav', songBlob, 'audio/wav');
+    if (withVoice && msgBlob) await up('message.wav', msgBlob, 'audio/wav');
     await up('meta.json', new Blob([JSON.stringify({ name })], { type: 'application/json' }), 'application/json');
     const url = `${location.origin}${location.pathname}?id=${id}`;
     $('shareUrl').value = url; $('shareOut').hidden = false;
     idb.set('lastLink', url);
     st('링크가 만들어졌어요!');
   } catch (e) { st('링크 만들기 실패: ' + (e.message || e)); }
-  $('rShare').disabled = false;
+  $('rShare').disabled = $('rShareNo').disabled = false;
 }
 if (REC) {
   document.body.classList.add('rec'); $('recbox').hidden = false;
   checkLocal();
   $('rLoad').onclick = restoreLocal;
-  $('rShare').onclick = shareLink;
+  $('rShare').onclick = () => shareLink(true);
+  $('rShareNo').onclick = () => shareLink(false);
   $('shareCopy').onclick = async () => { try { await navigator.clipboard.writeText($('shareUrl').value); $('shareSt').textContent = '복사했어요!'; } catch (e) { $('shareUrl').select(); } };
   $('shareSend').onclick = () => { const url = $('shareUrl').value; if (navigator.share) navigator.share({ title: '생일 축하해요', url }).catch(() => {}); else $('shareCopy').click(); };
   $('rClear').onclick = async () => {
