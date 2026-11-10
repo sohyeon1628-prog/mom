@@ -115,7 +115,7 @@
     <small class="sing">SING ALONG ♪</small>
     <div class="line">생일 축하합니다</div>
     <div class="line">생일 축하합니다</div>
-    <div class="line" id="nameLine">사랑하는 영미의</div>
+    <div class="line" id="nameLine">사랑하는 ○○의</div>
     <div class="line">생일 축하합니다 ♪</div>
     <span class="note n1">♪</span><span class="note n2">♫</span><span class="note n3">♪</span><span class="note n4">♫</span>
   </div>
@@ -128,7 +128,7 @@
 
   <!-- 나만 쓰는 녹음 페이지 (?rec) -->
   <div class="recbox" id="recbox" hidden>
-    <p class="hint">나만 쓰는 녹음 페이지예요. 엄마 화면에는 안 보여요.<br>
+    <p class="hint">녹음하는 화면이에요. 받는 사람 화면에는 녹음 버튼이 보이지 않아요.<br>
       1. <b>이어폰을 꼭 끼고</b> '노래 녹음 시작'을 눌러요. 딱딱딱 소리 다음 한 마디 뒤에 노래가 시작돼요.<br>
       2. '반주랑 같이 들어 보기'로 확인해요. 박자가 밀리면 타이밍을 조절해요.<br>
       3. 녹음은 <b>이 폰에만</b> 저장돼요. <b>링크로 보내기</b>를 누르면 받는 사람이 들을 수 있는 링크가 만들어져요.</p>
@@ -149,7 +149,7 @@
 
     <div class="pub">
       <label class="field">가사에 들어갈 이름
-        <input id="rName" maxlength="12" autocomplete="off" placeholder="예: 영미">
+        <input id="rName" maxlength="12" autocomplete="off" placeholder="받는 사람 이름">
         <small>'사랑하는 ○○의' 자리에 들어가요. 노래 목소리는 녹음한 그대로라서, 이름을 바꿨다면 노래도 새 이름으로 다시 녹음해 주세요.</small>
       </label>
       <button id="rShare">링크로 보내기</button>
@@ -158,6 +158,7 @@
         <input id="shareUrl" readonly>
         <div class="row"><button id="shareSend">메신저로 보내기</button><button id="shareCopy" class="ghost">링크 복사</button></div>
       </div>
+      <button id="rLoad" class="ghost" hidden>이 폰에 저장된 이전 녹음 불러오기</button>
       <button id="rClear" class="ghost">이 폰에 저장된 녹음 지우기</button>
 
       <details class="pub" id="ownerBox">
@@ -823,20 +824,22 @@ function setLine(k) { LINES.forEach((l, i) => l.classList.toggle('on', i === k))
 function restartLyrics() { clearInterval(lyricTimer); lyricIdx = 0; lyricTick(); lyricTimer = setInterval(lyricTick, 2600); }
 
 /* ================= 가사 이름: config.json ================= */
-let NAME = '영미';
+// 영미 님 이름은 ?mom 화면에서만. 새 화면은 빈 이름(○○)으로 시작해요.
+const DEF_NAME = QS.has('mom') ? '영미' : '○○';
+let NAME = DEF_NAME;
 function applyName(n) {
-  NAME = (n || '').trim() || '영미';
+  NAME = (n || '').trim() || DEF_NAME;
   const el = document.getElementById('nameLine');
   el.textContent = `사랑하는 ${NAME}의`; splitChars(el);
 }
+if (QS.has('mom')) applyName(DEF_NAME);
 /* ================= Supabase: 링크로 보내기 / 받기 ================= */
 const SB_URL = 'https://dvppwsqbssgrcuxconzz.supabase.co';
 const SB_KEY = 'sb_publishable_l0lwhskwY-NTmN1avax0Aw_3Q3MuLAZ';
 const SB_PUB = `${SB_URL}/storage/v1/object/public/voices`;
 const ID = (() => { const v = QS.get('id') || ''; return /^[a-z0-9]{6,24}$/.test(v) ? v : null; })();
-fetch(ID ? `${SB_PUB}/${ID}/meta.json` : 'config.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(c => {
+if (ID || QS.has('mom')) fetch(ID ? `${SB_PUB}/${ID}/meta.json` : 'config.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(c => {
   if (c && c.name) applyName(c.name);
-  const inp = document.getElementById('rName'); if (inp && !inp.value) inp.value = NAME;
 }).catch(() => {});
 
 /* ================= 관리자: GitHub에 바로 반영 ================= */
@@ -965,8 +968,13 @@ const idb = (() => {
   const run = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', mode), q = fn(t.objectStore('kv')); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
   return { get: k => run('readonly', st => st.get(k)).catch(() => undefined), set: (k, v) => run('readwrite', st => st.put(v, k)).catch(() => {}), del: k => run('readwrite', st => st.delete(k)).catch(() => {}) };
 })();
+async function checkLocal() {
+  const [sg, mg] = await Promise.all([idb.get('song'), idb.get('message')]);
+  $('rLoad').hidden = !(sg || mg);
+}
 async function restoreLocal() {
   const [sg, mg, nm] = await Promise.all([idb.get('song'), idb.get('message'), idb.get('name')]);
+  $('rLoad').hidden = true;
   if (nm) { $('rName').value = nm; applyName(nm); }
   if (sg) { songBlob = sg; $('rSongDl').href = URL.createObjectURL(sg); $('rSongDone').hidden = false; $('rSong').textContent = '노래 다시 녹음'; }
   if (mg) { msgBlob = mg; const u = URL.createObjectURL(mg); $('rMsgAudio').src = u; $('rMsgDl').href = u; $('rMsgDone').hidden = false; $('rMsg').textContent = '메시지 다시 녹음'; }
@@ -979,7 +987,8 @@ async function shareLink() {
   if (!songBlob && !msgBlob) return st('먼저 노래나 메시지를 녹음해 주세요');
   if (!window.supabase) return st('연결 라이브러리를 불러오지 못했어요. 새로고침해 주세요');
   sbClient = sbClient || window.supabase.createClient(SB_URL, SB_KEY);
-  const id = rid(), b = sbClient.storage.from('voices'), name = $('rName').value.trim() || NAME;
+  const id = rid(), b = sbClient.storage.from('voices'), name = $('rName').value.trim();
+  if (!name) { $('rName').focus(); return st('받는 사람 이름을 먼저 써 주세요'); }
   $('rShare').disabled = true;
   try {
     st('링크 만드는 중…');
@@ -996,7 +1005,8 @@ async function shareLink() {
 }
 if (REC) {
   document.body.classList.add('rec'); $('recbox').hidden = false;
-  restoreLocal();
+  checkLocal();
+  $('rLoad').onclick = restoreLocal;
   $('rShare').onclick = shareLink;
   $('shareCopy').onclick = async () => { try { await navigator.clipboard.writeText($('shareUrl').value); $('shareSt').textContent = '복사했어요!'; } catch (e) { $('shareUrl').select(); } };
   $('shareSend').onclick = () => { const url = $('shareUrl').value; if (navigator.share) navigator.share({ title: '생일 축하해요', url }).catch(() => {}); else $('shareCopy').click(); };
@@ -1006,6 +1016,7 @@ if (REC) {
     songBlob = msgBlob = recPreview = null;
     $('rSongDone').hidden = $('rMsgDone').hidden = $('shareOut').hidden = true;
     $('rSong').textContent = '노래 녹음 시작'; $('rMsg').textContent = '메시지 녹음 시작';
+    $('rLoad').hidden = true;
     recSt('이 폰의 녹음을 지웠어요');
   };
   try { if (localStorage.getItem('gh-token')) $('tokBox').querySelector('summary').textContent = 'GitHub 토큰 (저장됨, 바꾸려면 열기)'; } catch (e) {}
@@ -1039,7 +1050,7 @@ if (REC) {
     try { await capStart(); } catch (e) { return micFail(); }
     $('rMsgDone').hidden = true; $('rSong').disabled = true;
     $('rMsg').textContent = '메시지 녹음 끝';
-    recSt('● 메시지 녹음 중… 엄마에게 하고 싶은 말을 해 주세요');
+    recSt('● 메시지 녹음 중… 받는 사람에게 하고 싶은 말을 해 주세요');
   };
 }
 
