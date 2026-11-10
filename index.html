@@ -614,12 +614,6 @@ function dogEar(g, x, y, dir, sx, flap) {
 function drawDog(g, t, sq, wob = 0) {
   g.setTransform(S, 0, 0, S, OX, OY);
   const turn = easeIO(clamp((t - .5) / 1.1)), ek = 1 - turn;
-  // 꼬리 (몸 뒤) — 살랑살랑, 엉덩이 칠 때 더 세게
-  g.save(); g.translate(400, 560); g.rotate(Math.sin(t * 9) * (.25 + Math.abs(sq) * 8) - .2);
-  g.strokeStyle = '#7d5332'; g.lineWidth = 26; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(70, -20, 92, -96); g.stroke();
-  g.strokeStyle = '#f1dfc4'; g.lineWidth = 14; g.beginPath(); g.moveTo(84, -70); g.quadraticCurveTo(90, -84, 92, -96); g.stroke();
-  g.restore();
   g.save(); g.translate(0, -sq * 40);
   let gr = g.createRadialGradient(410, 180, 10, 400, 190, 200);
   gr.addColorStop(0, '#e2c39c'); gr.addColorStop(.6, '#bf9466'); gr.addColorStop(1, '#7d5634');
@@ -641,7 +635,7 @@ function drawDog(g, t, sq, wob = 0) {
   g.restore();
   // 늘어진 귀 (머리 위에) — 고개 돌리는 동안 같이 펼쳐져요
   const flap = Math.sin(t * 2.4) * .04 + sq * 3;
-  dogEar(g, 470 - 34 * ek, 150 + 6 * ek, 1, .6 + .4 * turn, flap); dogEar(g, 262 + 34 * ek, 146 + 6 * ek, -1, .6 + .4 * turn, -flap);
+  dogEar(g, 472 + 6 * ek, 150 + 4 * ek, 1, .8 + .2 * turn, flap); dogEar(g, 262 - 6 * ek, 146 + 4 * ek, -1, .8 + .2 * turn, -flap);
   g.restore();
   // 몸 (원숭이와 같은 자세)
   g.save(); g.translate(275, 682); g.rotate(wob); g.scale(1 + sq * .6, 1 - sq); g.translate(-275, -682);
@@ -651,9 +645,16 @@ function drawDog(g, t, sq, wob = 0) {
   gr = g.createLinearGradient(0, 468, 0, 682); gr.addColorStop(0, 'rgba(80,50,25,0)'); gr.addColorStop(1, 'rgba(80,50,25,.55)');
   g.fillStyle = gr; g.fill(PATH.leg);
   g.strokeStyle = 'rgba(90,60,35,.45)'; g.lineWidth = 5; g.stroke(PATH.crease);
+  // 꼬리: 엉덩이 바로 위에서 말려 올라가요 — 살랑살랑, 칠 때 더 세게
+  g.save(); g.translate(268, 316); g.rotate(Math.sin(t * 9) * (.18 + Math.abs(sq) * 6));
+  g.lineCap = 'round';
+  g.strokeStyle = '#6e4a2c'; g.lineWidth = 26; g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-30, -40, 2, -80, 36, -66); g.bezierCurveTo(60, -56, 52, -26, 28, -32); g.stroke();
+  g.strokeStyle = '#b08559'; g.lineWidth = 16; g.beginPath(); g.moveTo(0, -4); g.bezierCurveTo(-26, -42, 4, -76, 34, -64); g.stroke();
+  g.strokeStyle = '#f1dfc4'; g.lineWidth = 14; g.beginPath(); g.moveTo(50, -46); g.bezierCurveTo(52, -34, 40, -28, 28, -32); g.stroke();
+  g.restore();
   g.save(); g.translate(268, 385); g.scale(1 + sq * 1.6, 1 - sq * 1.1); g.translate(-268, -385);
-  g.fillStyle = '#ff3f80'; g.fill(PATH.heart);
-  circ(g, 268, 378, 4, '#5a1c32');
+  g.fillStyle = '#f7b3cb'; g.fill(PATH.heart);
+  circ(g, 268, 378, 4, '#b5577a');
   g.restore();
   g.restore();
 }
