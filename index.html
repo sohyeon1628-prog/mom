@@ -86,6 +86,8 @@
   .card input.name:focus { border-color: #ffe14d; }
   .card.result:has(#shareOut[hidden]):has(#shareSt:empty) { display: none; }
   .card.result { border-color: #ff8fd0; }
+  .pickrow { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #ddd; margin-top: 4px; }
+  .pickrow .link { font-size: 13px; color: #9a9a9a; text-decoration: underline; text-underline-offset: 3px; }
   .or { text-align: center; font: 12px 'Galmuri11', monospace; color: #777; margin: -4px 0; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 6px 6px 0; }
   .grid2 button, .grid2 .btn { min-height: 52px; padding: 14px 6px; font-size: 14px; }
@@ -155,6 +157,11 @@
       <h2><span class="num">1</span>받는 사람</h2>
       <input id="rName" class="name" maxlength="12" autocomplete="off" placeholder="받는 사람 이름" aria-label="받는 사람 이름">
       <small>가사 '사랑하는 ○○의'에 들어가요.</small>
+      <div class="pickrow"><span>캐릭터</span><a class="link" id="pkPrev" target="_blank" rel="noopener">미리 보기</a></div>
+      <div class="grid2">
+        <button id="pkMonkey" class="pk">원숭이</button>
+        <button id="pkDog" class="pk ghost">강아지</button>
+      </div>
       <button id="rShareNo">녹음 없이 바로 보내기</button>
       <small class="center">8비트 반주만 담긴 카드가 만들어져요</small>
     </section>
@@ -596,6 +603,60 @@ function monkeyEar(g, x, y, dir, sx = 1) {
   g.fillStyle = 'rgba(0,0,0,.12)'; g.beginPath(); g.ellipse(-8, 0, 7, 26, .12, 0, 7); g.fill();
   g.restore();
 }
+// 강아지 귀: 축 늘어진 귀 (고개 돌릴 때 같이 움직여요)
+function dogEar(g, x, y, dir, sx, flap) {
+  g.save(); g.translate(x, y); g.scale(dir * sx, 1); g.rotate(.25 + flap);
+  g.fillStyle = '#6b4428'; g.beginPath();
+  g.moveTo(-6, -8); g.bezierCurveTo(30, -14, 44, 40, 34, 92); g.bezierCurveTo(28, 116, 4, 112, 0, 88); g.bezierCurveTo(-6, 50, -18, 18, -6, -8); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.ellipse(18, 40, 7, 34, -.15, 0, 7); g.fill();
+  g.restore();
+}
+function drawDog(g, t, sq, wob = 0) {
+  g.setTransform(S, 0, 0, S, OX, OY);
+  const turn = easeIO(clamp((t - .5) / 1.1)), ek = 1 - turn;
+  // 꼬리 (몸 뒤) — 살랑살랑, 엉덩이 칠 때 더 세게
+  g.save(); g.translate(400, 560); g.rotate(Math.sin(t * 9) * (.25 + Math.abs(sq) * 8) - .2);
+  g.strokeStyle = '#7d5332'; g.lineWidth = 26; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(70, -20, 92, -96); g.stroke();
+  g.strokeStyle = '#f1dfc4'; g.lineWidth = 14; g.beginPath(); g.moveTo(84, -70); g.quadraticCurveTo(90, -84, 92, -96); g.stroke();
+  g.restore();
+  g.save(); g.translate(0, -sq * 40);
+  let gr = g.createRadialGradient(410, 180, 10, 400, 190, 200);
+  gr.addColorStop(0, '#e2c39c'); gr.addColorStop(.6, '#bf9466'); gr.addColorStop(1, '#7d5634');
+  circ(g, 368, 232, 122, gr);
+  g.save(); g.beginPath(); g.arc(368, 232, 122, 0, 7); g.clip();
+  g.translate(400 + (1 - turn) * 160, 0); g.scale(.25 + .75 * turn, 1); g.translate(-400, 0);
+  // 눈썹 점, 주둥이, 코, 입, 혀
+  g.fillStyle = '#6b4428'; g.beginPath(); g.ellipse(380, 160, 9, 5, -.2, 0, 7); g.fill(); g.beginPath(); g.ellipse(425, 160, 9, 5, .2, 0, 7); g.fill();
+  g.fillStyle = '#f1dfc4'; g.beginPath(); g.ellipse(408, 262, 58, 44, 0, 0, 7); g.fill();
+  const blink = turn >= 1 && (t % 3.6) > 3.45 ? .12 : 1;
+  g.save(); g.translate(0, 192); g.scale(1, blink); g.translate(0, -192);
+  circ(g, 382, 192, 18, '#fff'); circ(g, 426, 192, 18, '#fff'); circ(g, 384, 193, 11, '#111'); circ(g, 428, 193, 11, '#111');
+  g.restore();
+  g.fillStyle = '#1d1512'; g.beginPath(); g.ellipse(408, 240, 18, 12, 0, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); g.ellipse(402, 236, 5, 3, 0, 0, 7); g.fill();
+  g.strokeStyle = '#1d1512'; g.lineWidth = 3.5; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(408, 252); g.lineTo(408, 268); g.quadraticCurveTo(398, 280, 388, 272); g.moveTo(408, 268); g.quadraticCurveTo(418, 280, 428, 272); g.stroke();
+  g.fillStyle = '#ff3f80'; g.beginPath(); g.ellipse(410, 286, 9, 13 + Math.sin(t * 6) * 1.5, 0, 0, 7); g.fill();
+  g.restore();
+  // 늘어진 귀 (머리 위에) — 고개 돌리는 동안 같이 펼쳐져요
+  const flap = Math.sin(t * 2.4) * .04 + sq * 3;
+  dogEar(g, 470 - 34 * ek, 150 + 6 * ek, 1, .6 + .4 * turn, flap); dogEar(g, 262 + 34 * ek, 146 + 6 * ek, -1, .6 + .4 * turn, -flap);
+  g.restore();
+  // 몸 (원숭이와 같은 자세)
+  g.save(); g.translate(275, 682); g.rotate(wob); g.scale(1 + sq * .6, 1 - sq); g.translate(-275, -682);
+  gr = g.createRadialGradient(340, 350, 10, 325, 370, 390);
+  gr.addColorStop(0, '#d9b88f'); gr.addColorStop(.55, '#b08559'); gr.addColorStop(1, '#6e4a2c');
+  g.fillStyle = gr; g.fill(PATH.body);
+  gr = g.createLinearGradient(0, 468, 0, 682); gr.addColorStop(0, 'rgba(80,50,25,0)'); gr.addColorStop(1, 'rgba(80,50,25,.55)');
+  g.fillStyle = gr; g.fill(PATH.leg);
+  g.strokeStyle = 'rgba(90,60,35,.45)'; g.lineWidth = 5; g.stroke(PATH.crease);
+  g.save(); g.translate(268, 385); g.scale(1 + sq * 1.6, 1 - sq * 1.1); g.translate(-268, -385);
+  g.fillStyle = '#ff3f80'; g.fill(PATH.heart);
+  circ(g, 268, 378, 4, '#5a1c32');
+  g.restore();
+  g.restore();
+}
 function drawMonkey(g, t, sq, wob = 0) {
   g.setTransform(S, 0, 0, S, OX, OY);
   const turn = easeIO(clamp((t - .5) / 1.1));
@@ -656,7 +717,7 @@ function introFrame(now) {
   const s = now / 1000, t = s - introT0, j = s - jiggleAt;
   const dec = j < .55 ? 1 - j / .55 : 0, sq = Math.sin(j * 30) * jAmp * dec, wob = Math.sin(j * 24 + 1) * jAmp * .6 * dec;
   ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.fillStyle = '#000'; ictx.fillRect(0, 0, IW, IH);
-  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); drawMonkey(lctx, t, sq, wob);
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, IW, IH); (CHAR === 'dog' ? drawDog : drawMonkey)(lctx, t, sq, wob);
   lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = grainPat; lctx.fillRect(0, 0, IW, IH); lctx.globalCompositeOperation = 'source-over';
   ictx.drawImage(layer, 0, 0);
   tapEl.hidden = !(t > 1.8 && oozeAt === null);
@@ -710,9 +771,26 @@ let tapHit = false;
 intro.addEventListener('pointerup', () => {
   if (WATCH) return;
   unlockAudio();
-  if (tapHit) { tapHit = false; ukiki(taps); }
+  if (tapHit) { tapHit = false; CHAR === 'dog' ? woof(taps) : ukiki(taps); }
 });
 // 우끼끼! — 칠수록 점점 높고 신나게
+// 멍! 멍! — 칠수록 점점 높고 신나게
+function woof(n) {
+  if (ac.state !== 'running') return;
+  const t = ac.currentTime + .01, up = Math.pow(2, Math.min(n - 1, 5) / 12);
+  const out = ac.createGain(), bp = ac.createBiquadFilter();
+  out.gain.value = .6; bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 1.2;
+  bp.connect(out); out.connect(ac.destination);
+  [[0, .13], [.18, .11]].forEach(([d, len]) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(260 * up, t + d); o.frequency.exponentialRampToValueAtTime(480 * up, t + d + .03);
+    o.frequency.exponentialRampToValueAtTime(190 * up, t + d + len);
+    g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(1, t + d + .012); g.gain.exponentialRampToValueAtTime(.0001, t + d + len);
+    o.connect(g); g.connect(bp); o.start(t + d); o.stop(t + d + len + .02);
+    noise(bp, t + d, .06, .5, 'bandpass', 1400);
+  });
+}
 function ukiki(n) {
   if (ac.state !== 'running') return;
   const t = ac.currentTime + .01, up = Math.pow(2, Math.min(n - 1, 5) / 12);
@@ -923,9 +1001,11 @@ if (QS.has('mom')) applyName(DEF_NAME);
 const SB_URL = 'https://dvppwsqbssgrcuxconzz.supabase.co';
 const SB_KEY = 'sb_publishable_l0lwhskwY-NTmN1avax0Aw_3Q3MuLAZ';
 const SB_PUB = `${SB_URL}/storage/v1/object/public/voices`;
+let CHAR = QS.get('char') === 'dog' ? 'dog' : 'monkey';
 const ID = (() => { const v = QS.get('id') || ''; return /^[a-z0-9]{6,24}$/.test(v) ? v : null; })();
 if (ID || QS.has('mom')) fetch(ID ? `${SB_PUB}/${ID}/meta.json` : 'config.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(c => {
   if (c && c.name) applyName(c.name);
+  if (c && (c.char === 'dog' || c.char === 'monkey') && !QS.get('char')) CHAR = c.char;
 }).catch(() => {});
 
 /* ================= 관리자: GitHub에 바로 반영 ================= */
@@ -965,7 +1045,8 @@ async function publish() {
 /* ================= 내 목소리: voice/song.*, voice/message.* ================= */
 const REC = QS.has('rec');
 const MOM = QS.has('mom');                       // 영미 님 전용 화면 (GitHub voice/)
-const LAND = !REC && !MOM && !ID && !WATCH;       // 링크 없이 들어오면 생성하기 화면
+const DEMO = QS.has('demo');                     // 캐릭터 미리 보기 (녹음 없이)
+const LAND = !REC && !MOM && !ID && !WATCH && !DEMO;       // 링크 없이 들어오면 생성하기 화면
 const VOICE = { song: null, message: null };
 async function loadVoice(name) {
   if (ID) { try { const r = await fetch(`${SB_PUB}/${ID}/${name}.wav`); if (r.ok) return await r.arrayBuffer(); } catch (e) {} return null; }
@@ -974,7 +1055,7 @@ async function loadVoice(name) {
   }
   return null;
 }
-const voiceRaw = REC || WATCH || LAND ? {} : { song: loadVoice('song'), message: loadVoice('message') };
+const voiceRaw = REC || WATCH || LAND || DEMO ? {} : { song: loadVoice('song'), message: loadVoice('message') };
 let decoding;
 function decodeVoices() {
   return decoding = decoding || (async () => {
@@ -1081,7 +1162,7 @@ async function shareLink(withVoice = true) {
     const up = async (path, body, type) => { const { error } = await b.upload(`${id}/${path}`, body, { contentType: type, upsert: false }); if (error) throw error; };
     if (withVoice && songBlob) await up('song.wav', songBlob, 'audio/wav');
     if (withVoice && msgBlob) await up('message.wav', msgBlob, 'audio/wav');
-    await up('meta.json', new Blob([JSON.stringify({ name })], { type: 'application/json' }), 'application/json');
+    await up('meta.json', new Blob([JSON.stringify({ name, char: CHAR })], { type: 'application/json' }), 'application/json');
     const url = `${location.origin}${location.pathname}?id=${id}`;
     $('shareUrl').value = url; $('shareOut').hidden = false;
     idb.set('lastLink', url);
@@ -1092,6 +1173,15 @@ async function shareLink(withVoice = true) {
 if (REC) {
   document.body.classList.add('rec'); $('recbox').hidden = false;
   checkLocal();
+  const setChar = c => {
+    CHAR = c; idb.set('char', c);
+    $('pkMonkey').className = 'pk' + (c === 'monkey' ? '' : ' ghost');
+    $('pkDog').className = 'pk' + (c === 'dog' ? '' : ' ghost');
+    $('pkPrev').href = `${location.pathname}?demo&char=${c}`;
+  };
+  $('pkMonkey').onclick = () => setChar('monkey');
+  $('pkDog').onclick = () => setChar('dog');
+  setChar('monkey');
   $('rLoad').onclick = restoreLocal;
   $('rShare').onclick = () => shareLink(true);
   $('rShareNo').onclick = () => shareLink(false);
