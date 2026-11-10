@@ -606,7 +606,9 @@ function monkeyEar(g, x, y, dir, sx = 1) {
 // 강아지 귀: 축 늘어진 귀 (고개 돌릴 때 같이 움직여요)
 function dogEar(g, x, y, dir, sx, flap) {
   g.save(); g.translate(x, y); g.scale(dir * sx, 1); g.rotate(.25 + flap);
-  g.fillStyle = '#6b4428'; g.beginPath();
+  g.fillStyle = '#6b4428';
+  g.beginPath(); g.ellipse(6, 0, 22, 14, -.3, 0, 7); g.fill();   // 귀 뿌리 (머리 가장자리에 붙는 부분)
+  g.beginPath();
   g.moveTo(-6, -8); g.bezierCurveTo(30, -14, 44, 40, 34, 92); g.bezierCurveTo(28, 116, 4, 112, 0, 88); g.bezierCurveTo(-6, 50, -18, 18, -6, -8); g.fill();
   g.fillStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.ellipse(18, 40, 7, 34, -.15, 0, 7); g.fill();
   g.restore();
@@ -634,8 +636,10 @@ function drawDog(g, t, sq, wob = 0) {
   g.fillStyle = '#ff3f80'; g.beginPath(); g.ellipse(410, 286, 9, 13 + Math.sin(t * 6) * 1.5, 0, 0, 7); g.fill();
   g.restore();
   // 늘어진 귀 (머리 위에) — 고개 돌리는 동안 같이 펼쳐져요
-  const flap = Math.sin(t * 2.4) * .04 + sq * 3;
-  dogEar(g, 472 + 6 * ek, 150 + 4 * ek, 1, .8 + .2 * turn, flap); dogEar(g, 262 - 6 * ek, 146 + 4 * ek, -1, .8 + .2 * turn, -flap);
+  // 엉덩이를 칠 때마다 귀가 바깥 위로 들썩! 했다가 통통 튕기며 내려와요
+  const jj = performance.now() / 1000 - jiggleAt, lift = jj < 1.2 ? Math.abs(Math.sin(jj * 14)) * Math.exp(-jj * 4.5) * .9 : 0;
+  const flap = Math.sin(t * 2.4) * .04 - lift * 1.3, up = lift * 10;
+  dogEar(g, 460 + 4 * ek, 152 + 4 * ek - up, 1, .8 + .2 * turn, flap); dogEar(g, 280 - 4 * ek, 148 + 4 * ek - up, -1, .8 + .2 * turn, flap);
   g.restore();
   // 몸 (원숭이와 같은 자세)
   g.save(); g.translate(275, 682); g.rotate(wob); g.scale(1 + sq * .6, 1 - sq); g.translate(-275, -682);
